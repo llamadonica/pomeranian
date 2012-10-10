@@ -1,0 +1,5 @@
+
+[settings]
+pomodoro_time=25
+s_break_time=5
+l_break_time=15

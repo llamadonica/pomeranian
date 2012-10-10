@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+def build(bld):
+    bld.env.append_value('VALAFLAGS', ['-g', '--save-temps', '--define=DEBUG'])
+    bld(  features  = 'c cprogram',
+          cflags    = [ '-g3', '-ggdb3', '-O0', '-I' + bld.path.abspath()],
+          # threading = True,
+          vapi_dirs = ['.'],
+          name = 'pomeranian.program',
+          uselib = ['GIO','GTK','GEE','CANBERRA'],
+          target = 'pomeranian',
+          vala_target_glib = '2.32',
+          source = 'pomeranian.vala',
+          packages = ['config','gio-2.0','gtk+-3.0','gee-1.0','libcanberra','libcanberra-gtk'] )
