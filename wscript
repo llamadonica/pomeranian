@@ -40,14 +40,21 @@ def configure(conf):
     conf.define('VERSION', VERSION)
     conf.define('VERSION_MAJOR_MINOR', VERSION_MAJOR_MINOR)
     
-    conf.define('DATA_DIR', os.path.join(conf.env['DATADIR'], APPNAME))
-    conf.define('LOCALE_DIR', conf.env['LOCALEDIR'])
-    conf.define('PIXMAPS_DIR', os.path.join(conf.env['DATADIR'], APPNAME, 'pixmaps'))
-    conf.define('ICONS_DIR', os.path.join(conf.env['DATADIR'], 'icons'))
-    conf.define('SOUNDS_DIR', os.path.join(conf.env['DATADIR'], APPNAME, 'sounds'))
+    conf.env.PKGDATADIR  = os.path.join(conf.env.DATADIR, APPNAME)
+    conf.env.UIDIR       = os.path.join(conf.env.PKGDATADIR, 'ui')
+    conf.env.PIXMAPSDIR  = os.path.join(conf.env.PKGDATADIR, 'pixmaps')
+    conf.env.ICONSDIR    = os.path.join(conf.env.PKGDATADIR, 'icons')
+    conf.env.SOUNDSDIR   = os.path.join(conf.env.PKGDATADIR, 'sounds')
+    conf.env.ANIDIR      = os.path.join(conf.env.PKGDATADIR, 'ani')
+    
+    conf.define('PKGDATADIR',conf.env.PKGDATADIR)
+    conf.define('SOUNDSDIR',conf.env.SOUNDSDIR)
+    conf.define('UIDIR',conf.env.UIDIR)
+    conf.define('ANIDIR',conf.env.ANIDIR)
 
     conf.write_config_header("config.h")
 
 def build(bld):
     bld.recurse('src')
+    bld.recurse('data')
 

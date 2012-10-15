@@ -324,7 +324,7 @@ public class App : GLib.Object {
 	public App () {
 	}
 	construct {
-		this.UI_FILE = Path.build_filename (Config.DATA_DIR,Config.PACKAGE_NAME + ".ui",null);
+		this.UI_FILE = Path.build_filename (Config.UIDIR,Config.PACKAGE_NAME + ".ui",null);
 		this.debug (this.UI_FILE);
 		/* Create the PomeranianConfig
 		 */
@@ -345,14 +345,6 @@ public class App : GLib.Object {
 }
 [CCode (has_target = false)]
 public delegate TimerUI UIFactoryFunc (App app) ;
-public interface TimerUI : GLib.Object {
-	public abstract void toggle_show_hide ();
-	public signal void wind( int minutes, int seconds=0,Gtk.Widget? canberra_widget = null) ;
-	public abstract void stop() ;
-	public abstract bool get_time (out int minutes, out int seconds);
-	public signal void ring( Gtk.Widget? canberra_widget = null);
-	// public abstract static PomeranianTimerUI FACTORY_FUNC (PomeranianApp app);
-}
 public class TimerUIFactory : GLib.Object {
 	private Gee.HashMap<string,UIFactoryFunc> instantiaters ;
 	public TimerUIFactory () {
@@ -367,22 +359,95 @@ public class TimerUIFactory : GLib.Object {
 		instantiaters.set (timer_ui_type, builder);
 	}
 }
-public class GtkTimer : GLib.Object, TimerUI {
+public abstract class TimerUI : Object {
+	
+	private TimeVal end_time;
+	private TimeoutSource _clock_tick ;
+	private TimeoutSource get_clock_tick () {
+		if (this._clock_tick == null) {
+			this._clock_tick = new TimeoutSource.seconds (1) ;
+		}
+		return this._clock_tick;
+	}
+	private void remove_clock_tick () {
+		if (this._clock_tick == null) return;
+		Source.remove (this._clock_tick.get_id ());
+		this._clock_tick = null;
+	}
+	
+	public bool is_running {get; set;}
+	
+	public abstract void toggle_show_hide ();
+		
+	public virtual signal void wind (int minutes, int seconds=0,Gtk.Widget? canberra_widget = null) {
+		this.remove_clock_tick();
+		this.end_time    = TimeVal ();
+		this.end_time.add (( minutes*60 + seconds)*1000*1000 -1 );
+		this.get_clock_tick().set_callback (this.on_clock_tick) ;
+		this.get_clock_tick().attach (null);
+		
+		this.is_running  = true;
+	}	
+	public virtual signal void ring (Gtk.Widget? canberra_widget = null) {
+		this.is_running = false;
+		this.remove_clock_tick ();
+	}
+	public virtual signal void cancel () {
+		this.is_running = false;
+		this.remove_clock_tick ();
+	}
+	
+	construct {	
+		this.is_running = false;
+	}
+	
+	public abstract void update_time_display (int minutes, int seconds);
+	public abstract Gtk.Widget? ringing_widget ();
+	
+	public bool on_clock_tick () {
+		int minutes, seconds;
+		
+		if (this.get_time(out minutes, out seconds)) {
+			this.update_time_display (minutes, seconds);
+			//this.get_gtk_time_label().label = minutes.to_string() + ":" + ("%02d").printf (seconds);
+		}
+		else {
+			this.ring (this.ringing_widget ());
+			// this.ring (get_gtk_time_label ()); //The rest of the steps are taken care of in ring
+			return false;
+		}
+		return true;
+	}
+	public bool get_time (out int minutes, out int seconds) {
+		minutes = 0; seconds = 0;
+		
+		if (!this.is_running) return false;
+				
+		
+		var current_time  = TimeVal ();
+		var secs_diff     = this.end_time.tv_sec - current_time.tv_sec ;
+		var usecs_diff    = this.end_time.tv_usec - current_time.tv_usec ;
+		if (secs_diff < 0 || secs_diff == 0 && usecs_diff <= 0) return false;
+			
+		if (usecs_diff > 0) secs_diff += 1;
+		minutes  = (int) secs_diff/60;
+		seconds  = (int) secs_diff % 60;
+		return true;
+	}
+	//public abstract static TimerUI FACTORY_FUNC (App app);
+}
+public class GtkTimer : TimerUI {
 	enum CurrentButtonAct {
 		START_POMODORO,
 		START_L_BREAK,
 		START_S_BREAK,
 		STOP
-	}
-	private bool is_running = false;
+	}	
+	public int phase = 0;
 	private bool is_shown = true;
 	
-	public int phase = 0;
-	
 	private weak App app;
-	private CurrentButtonAct next_action = CurrentButtonAct.START_POMODORO;
-	private TimeVal end_time ;
-	
+	private CurrentButtonAct next_action = CurrentButtonAct.START_POMODORO;	
 	
 	//{{{ Hidden internal backing variables, accessed through their gettters
 	private TimeoutSource _clock_tick ;
@@ -398,17 +463,6 @@ public class GtkTimer : GLib.Object, TimerUI {
 	private Gtk.MenuItem _timer_dialog_quit ;
 	//}}}
 	
-	private TimeoutSource get_clock_tick () {
-		if (this._clock_tick == null) {
-			this._clock_tick = new TimeoutSource.seconds (1) ;
-		}
-		return this._clock_tick;
-	}
-	private void remove_clock_tick () {
-		if (this._clock_tick == null) return;
-		Source.remove (this._clock_tick.get_id ());
-		this._clock_tick = null;
-	}
 	private Gtk.Label get_gtk_time_label () {
 		if (this._gtk_time_label == null) {
 			this._gtk_time_label = 
@@ -490,7 +544,7 @@ public class GtkTimer : GLib.Object, TimerUI {
 				});
 			this.get_timer_dialog_stop().activate.connect(() =>
 				{
-					this.stop ();
+					this.cancel ();
 				});
 			this.get_timer_dialog_short_break().activate.connect(() =>
 				{
@@ -568,7 +622,7 @@ public class GtkTimer : GLib.Object, TimerUI {
 				this.get_timer_dialog_restart().label = "Start Pomodoro";
 				break;
 			case (CurrentButtonAct.STOP):
-				this.stop ();
+				this.cancel ();
 				break;
 		}
 	}
@@ -576,9 +630,11 @@ public class GtkTimer : GLib.Object, TimerUI {
 	public GtkTimer (App app) {
 		this.app = app;
 		this.get_gtk_timer_dialog().show();;
-		
-		this.wind.connect( this.do_wind );
-		this.ring.connect( this.do_ring );
+	}
+	construct {
+		this.wind.connect_after (this.do_wind);
+		this.ring.connect_after (this.do_ring);
+		this.cancel.connect_after (this.do_cancel);
 	}
 
 	public static TimerUI FACTORY_FUNC (App app) {
@@ -586,7 +642,7 @@ public class GtkTimer : GLib.Object, TimerUI {
 		return that as TimerUI;
 	}
 	
-	public void toggle_show_hide () {
+	public override void toggle_show_hide () {
 		if (this.is_shown) {
 			this.get_gtk_timer_dialog().hide();
 			this.is_shown = false;
@@ -597,47 +653,12 @@ public class GtkTimer : GLib.Object, TimerUI {
 		}
 	}
 	public void do_wind (int minutes, int seconds=0,Gtk.Widget? _ignore) {
-		this.remove_clock_tick();
-		this.end_time    = TimeVal ();
-		this.end_time.add (( minutes*60 + seconds)*1000*1000 -1 );
-		this.get_clock_tick().set_callback (this.on_clock_tick) ;
-		this.get_clock_tick().attach (null);
-		
-		this.is_running  = true;
 		this.next_action = CurrentButtonAct.STOP ;
 		this.get_gtk_timer_dialog_button().label = "Stop";
 		this.get_timer_dialog_stop().sensitive = true;
 		this.on_clock_tick ();
 	}
-	public bool on_clock_tick () {
-		int minutes, seconds;
-		
-		if (this.get_time(out minutes, out seconds)) {
-			this.get_gtk_time_label().label = minutes.to_string() + ":" + ("%02d").printf (seconds);
-		}
-		else {
-			
-			this.ring (get_gtk_time_label ()); //The rest of the steps are taken care of in ring
-			return false;
-		}
-		return true;
-	}
-	public void stop () {
-		this.is_running = false;
-		this.remove_clock_tick ();
-		
-		this.phase = 0;
-		this.next_action = CurrentButtonAct.START_POMODORO ;
-		this.get_gtk_time_label().label = "Stopped";
-		this.get_gtk_timer_dialog_button().label = "Start Pomodoro";
-		
-		this.get_timer_dialog_restart().label = "Start Pomodoro";
-		this.get_timer_dialog_stop().sensitive = false;
-	}
 	public void do_ring () {
-		this.is_running = false;
-		this.remove_clock_tick ();
-		
 		this.get_gtk_timer_dialog().show();
 		
 		this.get_gtk_time_label().label = "Stopped";
@@ -654,29 +675,38 @@ public class GtkTimer : GLib.Object, TimerUI {
 				this.get_gtk_timer_dialog_button().label = "Start Pomodoro";
 				break;
 			case 1:
+				this.next_action = CurrentButtonAct.START_S_BREAK ;
+				this.get_gtk_timer_dialog_button().label = "¹Start Short Break";
+				break;
 			case 3:
+				this.next_action = CurrentButtonAct.START_S_BREAK ;
+				this.get_gtk_timer_dialog_button().label = "²Start Short Break";
+				break;
 			case 5:
 				this.next_action = CurrentButtonAct.START_S_BREAK ;
-				this.get_gtk_timer_dialog_button().label = "Start Short Break";
+				this.get_gtk_timer_dialog_button().label = "³Start Short Break";
 				break;
 			case 7:
 				this.next_action = CurrentButtonAct.START_L_BREAK ;
-				this.get_gtk_timer_dialog_button().label = "Start Long Break";
+				this.get_gtk_timer_dialog_button().label = "⁴Start Long Break";
 				break;
-		}	
+		}
 	}
-	public bool get_time (ref int minutes, ref int seconds) {
-		if (!this.is_running) return false;
+	public void do_cancel () {
+		this.phase = 0;
+		this.next_action = CurrentButtonAct.START_POMODORO ;
+		this.get_gtk_time_label().label = "Stopped";
+		this.get_gtk_timer_dialog_button().label = "Start Pomodoro";
 		
-		var current_time  = TimeVal ();
-		var secs_diff     = this.end_time.tv_sec - current_time.tv_sec ;
-		var usecs_diff    = this.end_time.tv_usec - current_time.tv_usec ;
-		if (secs_diff < 0 || secs_diff == 0 && usecs_diff <= 0) return false;
-			
-		if (usecs_diff > 0) secs_diff += 1;
-		minutes  = (int) secs_diff/60;
-		seconds  = (int) secs_diff % 60;
-		return true;
+		this.get_timer_dialog_restart().label = "Start Pomodoro";
+		this.get_timer_dialog_stop().sensitive = false;
+	}
+
+	public override void update_time_display (int minutes, int seconds) {
+		this.get_gtk_time_label().label = minutes.to_string() + ":" + ("%02d").printf (seconds);
+	}
+	public override Gtk.Widget? ringing_widget () {
+		return get_gtk_time_label ();
 	}
 }
 public enum SoundBite {
@@ -714,9 +744,9 @@ public class CanberraSoundHandler : GLib.Object, SoundHandler {
 	private static string? parse_soundbite (SoundBite id) {
 		switch (id) {
 			case SoundBite.RING:
-				return Path.build_filename(Config.SOUNDS_DIR,"ring.ogg",null);
+				return Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null);
 			case SoundBite.WIND:
-				return Path.build_filename(Config.SOUNDS_DIR,"wind.ogg",null);
+				return Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null);
 			default:
 				return null;
 		}
