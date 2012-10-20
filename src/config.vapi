@@ -30,5 +30,6 @@ namespace Config {
        public const string PKGDATADIR;
        public const string SOUNDSDIR;
        public const string UIDIR;
+       public const string ANIDIR;
 }
 }

@@ -43,36 +43,61 @@ public class Main : GLib.Object {
 
 namespace Pomeranian {
 
-public class Configuration : GLib.Object {
+/* The class for items that can be configured. An object is instantiated,
+ * then registered with the configuration, where it is called before 
+ * each commit and after the configure step.
+ */
+
+[CCode (has_target = false)]
+public delegate PreferenceEnabled? PreferenceFactoryFunc () ;
+public PreferenceEnabled? NO_PREFERENCES () {
+	return null;
+}
+public abstract class PreferenceEnabled : GLib.Object {
+	public abstract void configure (KeyFile key_file) ;
+	public abstract void configure_from_default () ;
+	public abstract void commit    (KeyFile key_file) ;
+}
+public class Preferences : GLib.Object {
 	public int pomodoro_time {get; set;}
 	public int s_break_time  {get; set;}
 	public int l_break_time  {get; set;}
 	
 	public  string INI_FILE ;
+	public bool is_configured = false;
 	
+	public List<PreferenceEnabled> configurators; 
 	private int file_exists = -1;
 	
-	public void commit_to_file () 
-	{
+	public void commit_to_file () {
 		var key_file = new KeyFile ();
 		key_file.set_integer ("settings","pomodoro_time",this.pomodoro_time);
 		key_file.set_integer ("settings","s_break_time",this.s_break_time);
 		key_file.set_integer ("settings","l_break_time",this.l_break_time);
+		
+		foreach (var configurator in this.configurators)
+			configurator.commit (key_file);
+		
 		DirUtils.create_with_parents (Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME),493);
 		
 		var file = FileStream.open (this.INI_FILE, "w");
 		if (file != null)
 			file.puts (key_file.to_data ());
 	}
-	
-	public Configuration.default () {
+	public Preferences () {
 		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
+		this.configurators = new List<PreferenceEnabled> ();
+	}
+	
+	public void configure_from_default () {
 		this.pomodoro_time = 25;
 		this.s_break_time  = 5;
 		this.l_break_time  = 15;
-	}
-	public Configuration () {
-		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
+		foreach (var configurator in this.configurators)
+			configurator.configure_from_default ();
+		this.is_configured = true;
+	} 
+	public void configure () {
 		var key_file = new KeyFile ();
 
 		try {
@@ -86,9 +111,7 @@ public class Configuration : GLib.Object {
 				warning("Unexpected file error: %s\n", err.message);
 				file_exists = -1;
 			}
-			this.pomodoro_time = 25;
-			this.s_break_time = 5;
-			this.l_break_time = 15;
+			this.configure_from_default ();
 			return;
 		}
 		catch (KeyFileError err) { // on error proceed to default 
@@ -124,8 +147,106 @@ public class Configuration : GLib.Object {
 		catch (Error err) {
 			this.l_break_time = 15;
 		}
+		this.is_configured = true;
+	}
+
+	public void register (PreferenceEnabled configurator) {
+		this.configurators.append (configurator);
+	}
+
+}
+public abstract class PreferenceDialogEnabled : GLib.Object {
+	public weak PreferenceDialog preferences {get; set construct;}
+	public abstract void show (Gtk.Bin container);
+	public abstract void hide ();
+	public abstract void try_commit ();
+}
+public class PreferenceDialog : GLib.Object {
+	private weak App app;
+	
+	private Gtk.Dialog _options_dialog ;
+	private Gtk.Dialog get_options_dialog () throws Error {
+		if (this._options_dialog == null) {
+			int l_break_time, s_break_time, pomodoro_time;
+		
+			this._options_dialog = this.app.get_builder().get_object ("preferences-dialog") as Gtk.Dialog;
+		
+			var input1       = this.app.get_builder().get_object ("preferences-dialog-entry1") as Gtk.Entry;
+			pomodoro_time    = this.app.get_app_config().pomodoro_time;
+		
+			input1.notify["text"].connect (() =>
+				{
+					int64 time ;
+					if (int64.try_parse (input1.text, out time))
+					{
+						pomodoro_time = (int) time;
+					}
+					else 
+					{
+						input1.text = pomodoro_time.to_string();
+					}
+				});
+		
+			var input2       = this.app.get_builder().get_object ("preferences-dialog-entry2")  as Gtk.Entry;
+			s_break_time     = this.app.get_app_config().s_break_time;
+			input2.notify["text"].connect (() =>
+				{
+					int64 time ;
+					if (int64.try_parse (input2.text, out time))
+					{
+						s_break_time = (int) time;
+					}
+					else 
+					{
+						input2.text = s_break_time.to_string ();
+					}
+				});
+		
+			var input3       = this.app.get_builder().get_object ("preferences-dialog-entry3")  as Gtk.Entry;
+			l_break_time     = this.app.get_app_config().l_break_time;
+			input3.notify["text"].connect (() =>
+				{
+					int64 time ;
+					if (int64.try_parse (input3.text, out time))
+					{
+						l_break_time = (int) time;
+					}
+					else 
+					{
+						input3.text = l_break_time.to_string ();
+					}
+				});
+			
+			this._options_dialog.response.connect ((response) =>
+				{
+					if (response == 2)
+					{
+						this.app.get_app_config().pomodoro_time = pomodoro_time;
+						this.app.get_app_config().s_break_time  = s_break_time;
+						this.app.get_app_config().l_break_time  = l_break_time;
+					}
+				});
+			this._options_dialog.show.connect (() =>
+				{
+					input1.text      = this.app.get_app_config().pomodoro_time.to_string (); 
+					input2.text      = this.app.get_app_config().s_break_time.to_string (); 
+					input3.text      = this.app.get_app_config().l_break_time.to_string (); 
+					this.app.get_app_config().commit_to_file();
+				});
+		}
+		return this._options_dialog ;
+	}
+	public int run () {
+		return this.get_options_dialog().run ();
+	}
+	public void hide () {
+		this.get_options_dialog().hide();
+	}
+	public PreferenceDialog (App app) {
+		this.app = app;
 	}
 }
+
 public class App : GLib.Object {
 	public const bool   DEBUG_STATE  = true;
 	public const string PROGRAM_NAME = "Pomeranian";
@@ -146,24 +267,31 @@ public class App : GLib.Object {
 	private Gtk.StatusIcon _status_icon ;
 	private Gtk.Menu _popup_menu;
 	private Gtk.AboutDialog _about_dialog;
-	private Configuration _app_config;
+	private Preferences _app_config;
 	private Gtk.Builder _builder; // The hidden nullable attribute
 	private Gtk.Dialog _options_dialog;
 	private SoundHandlerFactory _sound_handler_factory;
 	private SoundHandler _sound_handler;
+	private PreferenceDialog _preference_dialog;
 	//}}}
 	
+	private PreferenceDialog get_preference_dialog() {
+		if (this._preference_dialog == null)
+			this._preference_dialog = new PreferenceDialog (this);
+		return this._preference_dialog;
+	}
 	private TimerUI get_ui () {
 		if (this._ui == null) {
-			this._ui = this.get_ui_factory().build(_("Gtk Interface"), this);
+			this._ui = this.get_ui_factory().build(_("Tomato Interface"), this);
 		}
 		return this._ui;
 	}
 	private TimerUIFactory get_ui_factory () {
 		if (this._ui_factory == null) {
-			this._ui_factory = new TimerUIFactory ();
+			this._ui_factory = new TimerUIFactory (this.get_app_config());
 			
-			this._ui_factory.register (_("Gtk Interface"), GtkTimer.FACTORY_FUNC);
+			this._ui_factory.register (_("Gtk Interface"), GtkTimer.FACTORY_FUNC, NO_PREFERENCES);
+			this._ui_factory.register (_("Tomato Interface"), VisualTimer.FACTORY_FUNC, NO_PREFERENCES);
 		}
 		return this._ui_factory;
 	}
@@ -205,8 +333,8 @@ public class App : GLib.Object {
 			var options_menu_item = this.get_builder().get_object("preferences-menu-item") as Gtk.MenuItem;
 			options_menu_item.activate.connect ( () => 
 			{
-				this.get_options_dialog().run();
-				this.get_options_dialog().hide ();
+				this.get_preference_dialog().run();
+				this.get_preference_dialog().hide ();
 			});
 		
 			var quit_menu_item    = this.get_builder().get_object("quit-menu-item") as Gtk.MenuItem;
@@ -223,10 +351,18 @@ public class App : GLib.Object {
 		}
 		return this._about_dialog;
 	}
-	public Configuration get_app_config () {
-		if (this._app_config == null)
-			this._app_config = new Configuration () ;
+	public Preferences get_app_config () {
+		if (this._app_config == null) {
+			this._app_config = new Preferences () ;
+		}
 		return this._app_config;
+	}
+	public Preferences configure_app_preferences () {
+		this.get_ui_factory();
+		this.get_sound_handler_factory();
+		
+		this.get_app_config().configure();
+		return this.get_app_config();
 	}
 	public Gtk.Builder get_builder () throws Error {	
 		if (this._builder == null) 
@@ -236,82 +372,11 @@ public class App : GLib.Object {
 		}
 		return this._builder;
 	}
-	private Gtk.Dialog get_options_dialog () throws Error {
-		if (this._options_dialog == null) {
-			int l_break_time, s_break_time, pomodoro_time;
-		
-			this._options_dialog = this.get_builder().get_object ("preferences-dialog") as Gtk.Dialog;
-		
-			var input1       = this.get_builder().get_object ("preferences-dialog-entry1") as Gtk.Entry;
-			pomodoro_time    = this.get_app_config().pomodoro_time;
-		
-			input1.notify["text"].connect (() =>
-				{
-					int64 time ;
-					if (int64.try_parse (input1.text, out time))
-					{
-						pomodoro_time = (int) time;
-					}
-					else 
-					{
-						input1.text = pomodoro_time.to_string();
-					}
-				});
-		
-			var input2       = this.get_builder().get_object ("preferences-dialog-entry2")  as Gtk.Entry;
-			s_break_time     = this.get_app_config().s_break_time;
-			input2.notify["text"].connect (() =>
-				{
-					int64 time ;
-					if (int64.try_parse (input2.text, out time))
-					{
-						s_break_time = (int) time;
-					}
-					else 
-					{
-						input2.text = s_break_time.to_string ();
-					}
-				});
-		
-			var input3       = this.get_builder().get_object ("preferences-dialog-entry3")  as Gtk.Entry;
-			l_break_time     = this.get_app_config().l_break_time;
-			input3.notify["text"].connect (() =>
-				{
-					int64 time ;
-					if (int64.try_parse (input3.text, out time))
-					{
-						l_break_time = (int) time;
-					}
-					else 
-					{
-						input3.text = l_break_time.to_string ();
-					}
-				});
-			
-			this._options_dialog.response.connect ((response) =>
-				{
-					if (response == 2)
-					{
-						this.get_app_config().pomodoro_time = pomodoro_time;
-						this.get_app_config().s_break_time  = s_break_time;
-						this.get_app_config().l_break_time  = l_break_time;
-					}
-				});
-			this._options_dialog.show.connect (() =>
-				{
-					input1.text      = this.get_app_config().pomodoro_time.to_string (); 
-					input2.text      = this.get_app_config().s_break_time.to_string (); 
-					input3.text      = this.get_app_config().l_break_time.to_string (); 
-					this.get_app_config().commit_to_file();
-				});
-		}
-		return this._options_dialog ;
-	}
 	private SoundHandlerFactory get_sound_handler_factory () {
 		if (this._sound_handler_factory == null) {
-			this._sound_handler_factory = new SoundHandlerFactory ();
+			this._sound_handler_factory = new SoundHandlerFactory (this.get_app_config());
 			
-			this._sound_handler_factory.register (_("Canberra"), CanberraSoundHandler.FACTORY_FUNC);
+			this._sound_handler_factory.register (_("Canberra"), CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
 		}
 		return this._sound_handler_factory;
 	}
@@ -328,7 +393,7 @@ public class App : GLib.Object {
 		this.debug (this.UI_FILE);
 		/* Create the PomeranianConfig
 		 */
-		this.get_app_config ();
+		this.configure_app_preferences ();
 		/* Create the StatusIcon
 		*/
 		this.get_status_icon();	
@@ -343,24 +408,39 @@ public class App : GLib.Object {
 			});
 	}
 }
+
 [CCode (has_target = false)]
-public delegate TimerUI UIFactoryFunc (App app) ;
+public delegate TimerUI UIFactoryFunc (App app, PreferenceEnabled? pref) ;
+
 public class TimerUIFactory : GLib.Object {
+	private weak Preferences preferences;
 	private Gee.HashMap<string,UIFactoryFunc> instantiaters ;
-	public TimerUIFactory () {
+	private Gee.HashMap<string,unowned PreferenceEnabled> instantiaters_preferences; 
+	public TimerUIFactory (Preferences preferences) {
+		this.preferences = preferences;
 		instantiaters = new Gee.HashMap<string,UIFactoryFunc> ();
+		instantiaters_preferences = new Gee.HashMap<string,PreferenceEnabled> ();
 	}
 	public TimerUI? build (string timer_ui_type, App app) {
+		var preferences = this.instantiaters_preferences.get (timer_ui_type);
 		var func = this.instantiaters.get (timer_ui_type);
 		if (func == null) return null;
-		return func (app) ;
+		return func (app,preferences) ;
 	}
-	public void register (string timer_ui_type, UIFactoryFunc builder) {
-		instantiaters.set (timer_ui_type, builder);
+	public void register (string timer_ui_type, UIFactoryFunc builder, PreferenceFactoryFunc pref_builder) {
+		instantiaters.set       (timer_ui_type, builder);
+		
+		assert (!this.preferences.is_configured);
+		
+		var preferences = pref_builder ();
+		if (preferences != null) {
+			this.preferences.register(preferences);
+			this.instantiaters_preferences.set (timer_ui_type, preferences);
+		}
 	}
 }
 public abstract class TimerUI : Object {
-	
+	public PreferenceDialogEnabled? preference_dialog {get; private set;}
 	private TimeVal end_time;
 	private TimeoutSource _clock_tick ;
 	private TimeoutSource get_clock_tick () {
@@ -378,6 +458,7 @@ public abstract class TimerUI : Object {
 	public bool is_running {get; set;}
 	
 	public abstract void toggle_show_hide ();
+	public abstract void destroy ();
 		
 	public virtual signal void wind (int minutes, int seconds=0,Gtk.Widget? canberra_widget = null) {
 		this.remove_clock_tick();
@@ -435,6 +516,9 @@ public abstract class TimerUI : Object {
 		return true;
 	}
 	//public abstract static TimerUI FACTORY_FUNC (App app);
+	~TimerUI () {
+		this.destroy ();
+	}
 }
 public class GtkTimer : TimerUI {
 	enum CurrentButtonAct {
@@ -708,7 +792,98 @@ public class GtkTimer : TimerUI {
 	public override Gtk.Widget? ringing_widget () {
 		return get_gtk_time_label ();
 	}
+	public override void destroy () {
+		if (this.app.ref_count == 0 || this._gtk_timer_dialog != null) 
+			return;
+		this._gtk_timer_dialog.destroy ();
+		this.app.get_builder().add_objects_from_file (this.app.UI_FILE, {"gtk-timer-dialog",null});
+	}
 }
+public class VisualTimer : TimerUI {
+	//{{{ Hidden internal backing variables, accessed through their gettters
+	private Gtk.Window _pom_gtk_window ;
+	private Gtk.DrawingArea _pom_gtk_surface ;
+	private Cairo.ImageSurface _current_frame;
+	private string anidir;
+	//}}}
+	
+	private int current_frame = 0;
+	const int seconds_per_frame = 10;
+	private bool is_shown = true;
+	
+	public Gtk.Window get_pom_gtk_window () {
+		if (this._pom_gtk_window == null) {
+			this._pom_gtk_window = 
+				this.app.get_builder().get_object("pom-gtk-window") as Gtk.Window ;
+			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
+			get_pom_gtk_surface().draw.connect( this.redraw_surface );
+		}
+		return this._pom_gtk_window;
+	}
+	private Gtk.DrawingArea get_pom_gtk_surface  () {
+		if (this._pom_gtk_surface == null) {
+			this._pom_gtk_surface = 
+				this.app.get_builder().get_object("pom-gtk-surface") as Gtk.DrawingArea ;
+		}
+		return this._pom_gtk_surface;
+	}
+	private Cairo.ImageSurface get_current_frame () {
+		var format = "%04d.png";
+		if ( this.frame_should_be () != current_frame
+		     || this._current_frame == null ) {
+			var file_name = Path.build_filename(this.anidir,format.printf(this.current_frame = this.frame_should_be ()));
+			this._current_frame = new Cairo.ImageSurface.from_png (file_name);
+		}
+		return this._current_frame;
+	}
+	public bool redraw_surface (Cairo.Context cr) {
+		cr.scale(0.5,0.5);
+		cr.set_source_surface (this.get_current_frame(),0,0);
+		cr.set_operator(Cairo.Operator.SOURCE);
+		cr.paint ();
+		return true;
+	}
+	private int frame_should_be () {
+		int minutes, seconds;
+		this.get_time (out minutes, out seconds);
+		return (minutes*60 + seconds)/this.seconds_per_frame ;
+	}
+	private weak App app;
+	public VisualTimer (App app) {
+		this.app = app;
+		this.anidir = Config.ANIDIR;
+		this.get_pom_gtk_window().show();
+	}
+	public override void update_time_display (int minutes, int seconds) {
+		if (this.frame_should_be () != current_frame) {
+			get_pom_gtk_surface().queue_draw ();
+		}
+	}
+	public override void toggle_show_hide () {
+		if (this.is_shown) {
+			this.get_pom_gtk_window().hide();
+			this.is_shown = false;
+		}
+		else {
+			this.get_pom_gtk_window().show_all();
+			this.is_shown = true;
+		}
+	}
+	public override Gtk.Widget? ringing_widget () {
+		return this.get_pom_gtk_surface ();
+	}
+	public override void destroy () {
+		if (this.app.ref_count == 0 || this._pom_gtk_window != null) 
+			return;
+		this._pom_gtk_window .destroy ();
+		this.app.get_builder().add_objects_from_file (this.app.UI_FILE, {"pom-gtk-window",null});
+	}
+	public static TimerUI FACTORY_FUNC (App app) {
+		var that = new VisualTimer (app) ;
+		return that as TimerUI;
+	}
+}
+
 public enum SoundBite {
 		WIND,
 		RING,
@@ -716,28 +891,45 @@ public enum SoundBite {
 		TICK_TOCK
 	}
 [CCode (has_target = false)]
-public delegate SoundHandler SoundHandlerFactoryFunc (App app) ;
-public interface SoundEvent : GLib.Object {
+public delegate SoundHandler SoundHandlerFactoryFunc (App app, PreferenceEnabled? pref) ;
+public abstract class SoundEvent : GLib.Object {
 	public abstract void cancel ();
 }
-public interface SoundHandler : GLib.Object {
-	public abstract SoundEvent? play (SoundBite sound, Gtk.Widget? widget);
-}
 public class SoundHandlerFactory : GLib.Object {
+	private weak Preferences preferences;
 	private Gee.HashMap<string,SoundHandlerFactoryFunc> instantiaters ;
-	public SoundHandlerFactory() {
+	private Gee.HashMap<string,unowned PreferenceEnabled> instantiaters_preferences; 
+	public SoundHandlerFactory(Preferences preferences) {
+		this.preferences = preferences;
 		instantiaters = new Gee.HashMap<string,SoundHandlerFactoryFunc> ();
+		instantiaters_preferences = new  Gee.HashMap<string,unowned PreferenceEnabled> ();
 	}
 	public SoundHandler? build (string sound_handler_type, App app) {
+		var preferences = this.instantiaters_preferences.get (sound_handler_type);
 		var func = this.instantiaters.get (sound_handler_type);
 		if (func == null) return null;
-		return func (app) ;
+		return func (app,preferences) ;
 	}
-	public void register (string sound_handler_type, SoundHandlerFactoryFunc builder) {
+	public void register (string sound_handler_type, SoundHandlerFactoryFunc builder, PreferenceFactoryFunc pref_builder) {
 		instantiaters.set (sound_handler_type, builder);
+		
+		assert (!this.preferences.is_configured);
+		
+		var preferences = pref_builder ();
+		if (preferences != null) {
+			this.preferences.register(preferences);
+			this.instantiaters_preferences.set (sound_handler_type, preferences);
+		}
 	}
 }
-public class CanberraSoundHandler : GLib.Object, SoundHandler {
+public abstract class SoundHandler : GLib.Object {
+	public abstract SoundEvent? play (SoundBite sound, Gtk.Widget? widget);
+	public abstract void destroy ();
+	~SoumdHandler () {
+		this.destroy ();
+	}
+}
+public class CanberraSoundHandler : SoundHandler {
 	public unowned Canberra.Context canberra_context ;
 	private unowned App app;
 	private uint32 current_id;
@@ -751,7 +943,7 @@ public class CanberraSoundHandler : GLib.Object, SoundHandler {
 				return null;
 		}
 	}
-	public SoundEvent? play (SoundBite sound, Gtk.Widget? widget ) {
+	public override SoundEvent? play (SoundBite sound, Gtk.Widget? widget ) {
 		var sound_name = CanberraSoundHandler.parse_soundbite (sound);
 		if (sound_name != null) {
 			this.app.debug ("Playing noise %s\n", sound_name);
@@ -768,15 +960,16 @@ public class CanberraSoundHandler : GLib.Object, SoundHandler {
 		var that = new CanberraSoundHandler (app);
 		return that as SoundHandler;
 	}
+	public override void destroy () {return;}
 }
-public class CanberraEvent : GLib.Object, SoundEvent {
+public class CanberraEvent :  SoundEvent {
 	private uint32 _id;
-	private CanberraSoundHandler handler;
+	private weak CanberraSoundHandler handler;
 	public CanberraEvent  (uint32 id, CanberraSoundHandler handler) {
 		this._id = id;
 		this.handler = handler;
 	}
-	public void cancel () {
+	public override void cancel () {
 		this.handler.canberra_context.cancel (this._id);
 	}
 }
