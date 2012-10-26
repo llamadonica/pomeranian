@@ -57,23 +57,42 @@ public abstract class PreferenceEnabled : GLib.Object {
 	public abstract void configure (KeyFile key_file) ;
 	public abstract void configure_from_default () ;
 	public abstract void commit    (KeyFile key_file) ;
+	
+	public abstract signal void has_changed ();
 }
 public class Preferences : GLib.Object {
 	public int pomodoro_time {get; set;}
 	public int s_break_time  {get; set;}
 	public int l_break_time  {get; set;}
+	public string ui_view {get;set;}
 	
 	public  string INI_FILE ;
 	public bool is_configured = false;
 	
+	private bool should_commit = false;
+	
 	public List<PreferenceEnabled> configurators; 
 	private int file_exists = -1;
 	
-	public void commit_to_file () {
+	public Preferences () {
+		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
+		this.configurators = new List<PreferenceEnabled> ();
+		
+	}
+	construct {
+	}
+	~Preferences () {
+		this.commit_to_file();
+	}
+	
+	private void commit_to_file () {
+		if (!should_commit) return;
+		
 		var key_file = new KeyFile ();
 		key_file.set_integer ("settings","pomodoro_time",this.pomodoro_time);
 		key_file.set_integer ("settings","s_break_time",this.s_break_time);
 		key_file.set_integer ("settings","l_break_time",this.l_break_time);
+		key_file.set_string  ("settings", "ui_view",this.ui_view);
 		
 		foreach (var configurator in this.configurators)
 			configurator.commit (key_file);
@@ -84,18 +103,24 @@ public class Preferences : GLib.Object {
 		if (file != null)
 			file.puts (key_file.to_data ());
 	}
-	public Preferences () {
-		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
-		this.configurators = new List<PreferenceEnabled> ();
-	}
-	
 	public void configure_from_default () {
 		this.pomodoro_time = 25;
 		this.s_break_time  = 5;
 		this.l_break_time  = 15;
+		this.ui_view = "Tomato Interface";
 		foreach (var configurator in this.configurators)
 			configurator.configure_from_default ();
+			
+		this.notify["pomodoro_time"].connect(() =>
+			{ this.should_commit = true; });
+		this.notify["s_break_time"].connect(() =>
+			{ this.should_commit = true; });
+		this.notify["l_break_time"].connect(() =>
+			{ this.should_commit = true; });
+		this.notify["ui_view"].connect(() =>
+			{ this.should_commit = true; });
 		this.is_configured = true;
+		this.should_commit = true;
 	} 
 	public void configure () {
 		var key_file = new KeyFile ();
@@ -106,6 +131,7 @@ public class Preferences : GLib.Object {
 		catch (FileError err) {     // on error proceed to default
 			if (err is FileError.NOENT) {
 				file_exists = 0;
+				this.should_commit = true;
 			}
 			else {
 				warning("Unexpected file error: %s\n", err.message);
@@ -117,9 +143,7 @@ public class Preferences : GLib.Object {
 		catch (KeyFileError err) { // on error proceed to default 
 			warning("Unexpected file error: %s\n", err.message);
 			file_exists = 1;
-			this.pomodoro_time = 25;
-			this.s_break_time = 5;
-			this.l_break_time = 15;
+			this.configure_from_default ();
 			return;
 		}
 		
@@ -128,46 +152,75 @@ public class Preferences : GLib.Object {
 		try {
 			this.pomodoro_time = key_file.get_integer ("settings","pomodoro_time");
 		}
-		catch (Error err) {
-			this.pomodoro_time = 25;
+		catch (KeyFileError err) {
+			this.pomodoro_time = 25; this.should_commit = true;
 		}
 		
 		//s break time
 		try {
 			this.s_break_time = key_file.get_integer ("settings","s_break_time");
 		}
-		catch (Error err) {
-			this.s_break_time = 5;
+		catch (KeyFileError err) {
+			this.s_break_time = 5; this.should_commit = true;
 		}
 		
 		//l break time
 		try {
 			this.l_break_time = key_file.get_integer ("settings","l_break_time");
 		}
-		catch (Error err) {
-			this.l_break_time = 15;
+		catch (KeyFileError err) {
+			this.l_break_time = 15; this.should_commit = true;
 		}
-		this.is_configured = true;
+		
+		//timer_ui
+		try {
+			this.ui_view = key_file.get_string ("settings","ui_view");
+		}
+		catch (KeyFileError err) {
+			this.ui_view  = "Tomato Interface"; this.should_commit = true;
+		}
+		
+		foreach (var configurator in this.configurators)
+			configurator.configure (key_file);
+		
+		this.notify.connect(() => { 
+			stderr.printf ("Preferences says \"should_commit=true\".\n");
+			this.should_commit = true; });
 	}
-
 	public void register (PreferenceEnabled configurator) {
 		this.configurators.append (configurator);
+		configurator.has_changed.connect(() =>
+			{this.should_commit = true;});
 	}
 
 }
+
 public abstract class PreferenceDialogEnabled : GLib.Object {
 	public weak PreferenceDialog preferences {get; set construct;}
-	public abstract void show (Gtk.Bin container);
+	public abstract void instantiate (Gtk.Bin container);
+	public abstract void show ();
 	public abstract void hide ();
 	public abstract void try_commit ();
+	public abstract void try_uncommit ();
 }
 public class PreferenceDialog : GLib.Object {
 	private weak App app;
+	private PreferenceDialogEnabled? ui_sub_dialog;
+	private Gtk.Expander _ui_expander;
+	
+	private string previous_ui_view;
 	
 	private Gtk.Dialog _options_dialog ;
+	private Gtk.Expander get_ui_expander () {
+		if (this._ui_expander == null) {
+			this._ui_expander = this.app.get_builder().get_object ("preferences-dialog-ui-expander") as Gtk.Expander;
+		}
+		return this._ui_expander;
+	}
 	private Gtk.Dialog get_options_dialog () throws Error {
 		if (this._options_dialog == null) {
 			int l_break_time, s_break_time, pomodoro_time;
+			string ui_view;
 		
 			this._options_dialog = this.app.get_builder().get_object ("preferences-dialog") as Gtk.Dialog;
 		
@@ -217,6 +270,57 @@ public class PreferenceDialog : GLib.Object {
 					}
 				});
 			
+			var ui_menu      = this.app.get_builder().get_object ("preference-dialog-interface-selector") as Gtk.ComboBoxText ;
+			this.previous_ui_view = this.app.get_app_config().ui_view ;
+			bool valid_view  = false;
+			
+			var key_iterator = this.app.get_ui_factory().instantiaters.map_iterator();
+			if (key_iterator.first()) {
+				do {
+					ui_menu.append(key_iterator.get_key(), key_iterator.get_key());
+					if (this.previous_ui_view == key_iterator.get_key())
+						valid_view = true;
+				} while (key_iterator.next());
+			}
+			if (valid_view) {
+				ui_menu.set_active_id (this.previous_ui_view);
+			} else {
+				ui_menu.set_active_id ("Tomato Interface");
+			}
+			ui_menu.changed.connect(() =>
+				{
+					this.app.debug("Changed UI interface to: %s\n", ui_menu.get_active_id());
+					if (this.ui_sub_dialog != null)
+						this.ui_sub_dialog .hide();
+					
+					this.app.get_app_config().ui_view = ui_menu.get_active_id() ;
+					this.ui_sub_dialog = this.app.get_ui().preference_dialog ;
+					if (this.ui_sub_dialog != null)
+					{
+						this.get_ui_expander().sensitive = true;
+						this.ui_sub_dialog.instantiate(this.get_ui_expander());
+						this.ui_sub_dialog.show();
+					}
+					else
+					{
+						this.get_ui_expander().expanded  = false;
+						this.get_ui_expander().sensitive = false;
+					}
+					
+					this.app.debug("Finished interface change: %s\n", ui_menu.get_active_id());
+				});
+			
+			this.ui_sub_dialog = this.app.get_ui().preference_dialog ;
+			if (this.ui_sub_dialog != null)
+			{
+				this.get_ui_expander().sensitive = true;
+				this.ui_sub_dialog.instantiate (this.get_ui_expander());
+			}
+			else
+			{
+				this.get_ui_expander().expanded  = false;
+				this.get_ui_expander().sensitive = false;
+			}
 			this._options_dialog.response.connect ((response) =>
 				{
 					if (response == 2)
@@ -224,6 +328,18 @@ public class PreferenceDialog : GLib.Object {
 						this.app.get_app_config().pomodoro_time = pomodoro_time;
 						this.app.get_app_config().s_break_time  = s_break_time;
 						this.app.get_app_config().l_break_time  = l_break_time;
+						this.previous_ui_view = this.app.get_app_config().ui_view;
+						
+						if (this.ui_sub_dialog != null) {
+							this.ui_sub_dialog.try_commit();
+						}
+					}
+					else
+					{
+						this.app.get_app_config().ui_view = this.previous_ui_view;
+						if (this.ui_sub_dialog != null) {
+							this.ui_sub_dialog.try_uncommit();
+						}
 					}
 				});
 			this._options_dialog.show.connect (() =>
@@ -231,12 +347,17 @@ public class PreferenceDialog : GLib.Object {
 					input1.text      = this.app.get_app_config().pomodoro_time.to_string (); 
 					input2.text      = this.app.get_app_config().s_break_time.to_string (); 
 					input3.text      = this.app.get_app_config().l_break_time.to_string (); 
-					this.app.get_app_config().commit_to_file();
 				});
+			
+			
 		}
 		return this._options_dialog ;
 	}
 	public int run () {
+		this.get_options_dialog() ; // This should be done a little better.
+		if (this.ui_sub_dialog != null) {
+			this.ui_sub_dialog.show ();
+		}
 		return this.get_options_dialog().run ();
 	}
 	public void hide () {
@@ -280,18 +401,18 @@ public class App : GLib.Object {
 			this._preference_dialog = new PreferenceDialog (this);
 		return this._preference_dialog;
 	}
-	private TimerUI get_ui () {
+	public TimerUI get_ui () {
 		if (this._ui == null) {
-			this._ui = this.get_ui_factory().build(_("Tomato Interface"), this);
+			this._ui = this.get_ui_factory().build(_(this.get_app_config().ui_view), this);
 		}
 		return this._ui;
 	}
-	private TimerUIFactory get_ui_factory () {
+	public TimerUIFactory get_ui_factory () {
 		if (this._ui_factory == null) {
 			this._ui_factory = new TimerUIFactory (this.get_app_config());
 			
 			this._ui_factory.register (_("Gtk Interface"), GtkTimer.FACTORY_FUNC, NO_PREFERENCES);
-			this._ui_factory.register (_("Tomato Interface"), VisualTimer.FACTORY_FUNC, NO_PREFERENCES);
+			this._ui_factory.register (_("Tomato Interface"), VisualTimer.FACTORY_FUNC, VisualTimerPreferences.FACTORY_FUNC);
 		}
 		return this._ui_factory;
 	}
@@ -362,6 +483,17 @@ public class App : GLib.Object {
 		this.get_sound_handler_factory();
 		
 		this.get_app_config().configure();
+		this.get_app_config().notify["ui-view"].connect(() =>
+				{
+					int minutes, seconds;
+					var is_running = this.get_ui().get_time(out minutes, out seconds);
+					this.get_ui().destroy();
+					
+					this._ui = null;
+					var ui = this.get_ui();
+					if (is_running)
+						ui.wind( minutes, seconds );
+				});
 		return this.get_app_config();
 	}
 	public Gtk.Builder get_builder () throws Error {	
@@ -414,7 +546,7 @@ public delegate TimerUI UIFactoryFunc (App app, PreferenceEnabled? pref) ;
 
 public class TimerUIFactory : GLib.Object {
 	private weak Preferences preferences;
-	private Gee.HashMap<string,UIFactoryFunc> instantiaters ;
+	public  Gee.HashMap<string,UIFactoryFunc> instantiaters ;
 	private Gee.HashMap<string,unowned PreferenceEnabled> instantiaters_preferences; 
 	public TimerUIFactory (Preferences preferences) {
 		this.preferences = preferences;
@@ -440,7 +572,7 @@ public class TimerUIFactory : GLib.Object {
 	}
 }
 public abstract class TimerUI : Object {
-	public PreferenceDialogEnabled? preference_dialog {get; private set;}
+	public PreferenceDialogEnabled? preference_dialog {get; protected set;}
 	private TimeVal end_time;
 	private TimeoutSource _clock_tick ;
 	private TimeoutSource get_clock_tick () {
@@ -793,29 +925,53 @@ public class GtkTimer : TimerUI {
 		return get_gtk_time_label ();
 	}
 	public override void destroy () {
-		if (this.app.ref_count == 0 || this._gtk_timer_dialog != null) 
+		if (this.app.ref_count == 0 || this._gtk_timer_dialog == null) 
 			return;
 		this._gtk_timer_dialog.destroy ();
 		this.app.get_builder().add_objects_from_file (this.app.UI_FILE, {"gtk-timer-dialog",null});
 	}
 }
+
 public class VisualTimer : TimerUI {
 	//{{{ Hidden internal backing variables, accessed through their gettters
 	private Gtk.Window _pom_gtk_window ;
 	private Gtk.DrawingArea _pom_gtk_surface ;
 	private Cairo.ImageSurface _current_frame;
 	private string anidir;
+	
 	//}}}
+	
+	public VisualTimerPreferences preferences;
 	
 	private int current_frame = 0;
 	const int seconds_per_frame = 10;
 	private bool is_shown = true;
+	private double scale_factor;
 	
 	public Gtk.Window get_pom_gtk_window () {
 		if (this._pom_gtk_window == null) {
 			this._pom_gtk_window = 
 				this.app.get_builder().get_object("pom-gtk-window") as Gtk.Window ;
 			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
+			
+			this._pom_gtk_window.set_opacity (this.preferences.opacity/100);
+			var opacity_handler = this.preferences.notify["opacity"].connect(() => {
+					this.get_pom_gtk_window().set_opacity (this.preferences.opacity/100);
+				});
+			this._pom_gtk_window.destroy.connect(() => {
+					this.preferences.disconnect (opacity_handler);
+				});
+				
+			this.get_pom_gtk_surface().set_size_request (this.preferences.size, this.preferences.size);
+			this.scale_factor = ((double) this.preferences.size)/240 ;
+			var size_handler = this.preferences.notify["size"].connect(() => {
+					this.get_pom_gtk_surface().set_size_request (this.preferences.size, this.preferences.size);
+					this.scale_factor = ((double) this.preferences.size)/240 ;
+					this.get_pom_gtk_surface().queue_draw();
+				});
+			this.get_pom_gtk_surface().destroy.connect(() => {
+					this.preferences.disconnect (size_handler);
+				});
 			get_pom_gtk_surface().draw.connect( this.redraw_surface );
 		}
 		return this._pom_gtk_window;
@@ -837,7 +993,7 @@ public class VisualTimer : TimerUI {
 		return this._current_frame;
 	}
 	public bool redraw_surface (Cairo.Context cr) {
-		cr.scale(0.5,0.5);
+		cr.scale(this.scale_factor,this.scale_factor);
 		cr.set_source_surface (this.get_current_frame(),0,0);
 		cr.set_operator(Cairo.Operator.SOURCE);
 		cr.paint ();
@@ -848,11 +1004,16 @@ public class VisualTimer : TimerUI {
 		this.get_time (out minutes, out seconds);
 		return (minutes*60 + seconds)/this.seconds_per_frame ;
 	}
-	private weak App app;
-	public VisualTimer (App app) {
+	public weak App app;
+	public VisualTimer (App app, VisualTimerPreferences prefs) {
+		this.preferences = prefs;
 		this.app = app;
 		this.anidir = Config.ANIDIR;
 		this.get_pom_gtk_window().show();
+		this.preferences.notify.connect((_,param) => {
+				this.app.debug ("Parameter %s changed.\n", param.name);
+			});
+		this.preference_dialog = new VisualTimerPreferencesDialog (this) as PreferenceDialogEnabled;
 	}
 	public override void update_time_display (int minutes, int seconds) {
 		if (this.frame_should_be () != current_frame) {
@@ -873,28 +1034,137 @@ public class VisualTimer : TimerUI {
 		return this.get_pom_gtk_surface ();
 	}
 	public override void destroy () {
-		if (this.app.ref_count == 0 || this._pom_gtk_window != null) 
+		if (this.app.ref_count == 0 || this._pom_gtk_window == null) 
 			return;
-		this._pom_gtk_window .destroy ();
+		this._pom_gtk_window.destroy ();
 		this.app.get_builder().add_objects_from_file (this.app.UI_FILE, {"pom-gtk-window",null});
 	}
-	public static TimerUI FACTORY_FUNC (App app) {
-		var that = new VisualTimer (app) ;
+	public static TimerUI FACTORY_FUNC (App app, PreferenceEnabled? prefs) {
+		var that = new VisualTimer (app, prefs as VisualTimerPreferences) ;
 		return that as TimerUI;
+	}
+}
+public class VisualTimerPreferences : PreferenceEnabled {
+	public double opacity {get; set;}
+	public int    size    {get; set;}
+	public override void configure (KeyFile key_file) {
+		try {
+			this.opacity = key_file.get_double ("VisualTimerPreferences","opacity");
+		}
+		catch (KeyFileError err) {
+			this.opacity  = 1;
+			this.has_changed();
+		}
+		try {
+			this.size = key_file.get_integer ("VisualTimerPreferences","size");
+		}
+		catch (KeyFileError err) {
+			this.size  = 180;
+			this.has_changed();
+		}
+	}
+	public override void configure_from_default () {
+		this.opacity = 1;
+		this.size    = 180;
+		this.has_changed();
+	}
+	public override void commit (KeyFile key_file) {
+		key_file.set_double ("VisualTimerPreferences","opacity",this.opacity);
+		key_file.set_integer ("VisualTimerPreferences","size",this.size);
+	}
+	public static PreferenceEnabled FACTORY_FUNC () {
+		var that = new VisualTimerPreferences ();
+		return that as PreferenceEnabled;
+	}
+	construct {
+		this.notify.connect((_1,_2) => {
+				this.has_changed ();
+			});
+	}
+}
+public class VisualTimerPreferencesDialog : PreferenceDialogEnabled {
+	private Gtk.Grid _subdialog;
+	private Gtk.Adjustment _opacity_adjustment;
+	private Gtk.Adjustment _size_adjustment;
+	private VisualTimerPreferences preferences;
+	
+	private weak VisualTimer ui;
+	
+	private int previous_size;
+	private double previous_opacity;
+	
+	private Gtk.Grid get_subdialog () {	
+		if (this._subdialog == null) 
+		{	this._subdialog = 
+				this.ui.app.get_builder().get_object("visual-timer-preferences-subdialog") as Gtk.Grid ;
+			this.get_opacity_adjustment().notify["value"].connect(() => {
+					this.preferences.opacity = this.get_opacity_adjustment().value ;
+				});
+			this.get_size_adjustment().notify["value"].connect(() => {
+					this.preferences.size = (int) this.get_size_adjustment().value ;
+				});
+		}
+		return this._subdialog;
+	}
+	private Gtk.Adjustment get_opacity_adjustment () {
+		if (this._opacity_adjustment == null) {
+			this._opacity_adjustment = 
+				this.ui.app.get_builder().get_object("visual-timer-preferences-opacity-adjustment") as Gtk.Adjustment ;
+		}
+		return this._opacity_adjustment;
+	}
+	private Gtk.Adjustment get_size_adjustment () {
+		if (this._size_adjustment == null) {
+			this._size_adjustment = 
+				this.ui.app.get_builder().get_object("visual-timer-preferences-size-adjustment") as Gtk.Adjustment ;
+		}
+		return this._size_adjustment;
+	}
+
+	public VisualTimerPreferencesDialog (VisualTimer ui) {
+		this.ui = ui;
+		this.preferences = this.ui.preferences;
+	}
+	public override void instantiate (Gtk.Bin container) {
+		container.child = get_subdialog() ;
+	}
+	public override void show () {
+		this.get_opacity_adjustment().value = this.previous_opacity = this.preferences.opacity ;
+		this.get_size_adjustment().value    = this.previous_size = this.preferences.size;
+		
+		get_subdialog().show ();
+	}
+	public override void hide () {
+		if (this._subdialog != null) {
+			this._subdialog.destroy();
+		}
+		this._subdialog          = null;
+		this._opacity_adjustment = null;
+		this._size_adjustment    = null;
+		this.ui.app.get_builder().add_objects_from_file (this.ui.app.UI_FILE, 
+			{"visual-timer-preferences-subdialog",
+			 "visual-timer-preferences-opacity-adjustment",
+			 "visual-timer-preferences-size-adjustment",null});
+	}
+	public override void try_commit () {;}
+	public override void try_uncommit () {
+		this.preferences.opacity = this.previous_opacity;
+		this.preferences.size    = this.previous_size;
 	}
 }
 
 public enum SoundBite {
-		WIND,
-		RING,
-		SPRING,
-		TICK_TOCK
-	}
+	WIND,
+	RING,
+	SPRING,
+	TICK_TOCK
+}
 [CCode (has_target = false)]
 public delegate SoundHandler SoundHandlerFactoryFunc (App app, PreferenceEnabled? pref) ;
 public abstract class SoundEvent : GLib.Object {
 	public abstract void cancel ();
 }
+
 public class SoundHandlerFactory : GLib.Object {
 	private weak Preferences preferences;
 	private Gee.HashMap<string,SoundHandlerFactoryFunc> instantiaters ;
