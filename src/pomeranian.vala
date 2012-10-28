@@ -43,6 +43,19 @@ public class Main : GLib.Object {
 
 namespace Pomeranian {
 
+public class DisconnectionManager : Object {
+	public weak Object object     {get; set;}
+	public      ulong  handler_id {get; set;}
+	public DisconnectionManager () {;}
+	public new void disconnect () {
+		if (object==null) return;
+		
+		object.disconnect (handler_id);
+		object = null;
+		handler_id = 0;
+	}
+}
+
 /* The class for items that can be configured. An object is instantiated,
  * then registered with the configuration, where it is called before 
  * each commit and after the configure step.
@@ -196,7 +209,6 @@ public class Preferences : GLib.Object {
 }
 
 public abstract class PreferenceDialogEnabled : GLib.Object {
-	public weak PreferenceDialog preferences {get; set construct;}
 	public abstract void instantiate (Gtk.Bin container);
 	public abstract void show ();
 	public abstract void hide ();
@@ -459,7 +471,12 @@ public class App : GLib.Object {
 			});
 		
 			var quit_menu_item    = this.get_builder().get_object("quit-menu-item") as Gtk.MenuItem;
-			quit_menu_item.activate.connect (Gtk.main_quit);
+			quit_menu_item.activate.connect (() =>
+				{	if (this._ui != null)
+						this._ui.destroy();
+					Gtk.main_quit();
+				}
+			);
 		}
 		return this._popup_menu;
 	}
@@ -933,10 +950,27 @@ public class GtkTimer : TimerUI {
 }
 
 public class VisualTimer : TimerUI {
+	
+	enum Phase {
+		POMODORO_1,
+		BREAK_1,
+		POMODORO_2,
+		BREAK_2,
+		POMODORO_3,
+		BREAK_3,
+		POMODORO_4,
+		BREAK_4;
+	}
 	//{{{ Hidden internal backing variables, accessed through their gettters
 	private Gtk.Window _pom_gtk_window ;
 	private Gtk.DrawingArea _pom_gtk_surface ;
 	private Cairo.ImageSurface _current_frame;
+	private Gtk.Menu _timer_dialog_menu;
+	private Gtk.MenuItem _timer_dialog_restart ;
+	private Gtk.MenuItem _timer_dialog_stop ;
+	private Gtk.MenuItem _timer_dialog_short_break ;
+	private Gtk.MenuItem _timer_dialog_long_break ;
+	private Gtk.MenuItem _timer_dialog_quit ;
 	private string anidir;
 	
 	//}}}
@@ -947,6 +981,19 @@ public class VisualTimer : TimerUI {
 	const int seconds_per_frame = 10;
 	private bool is_shown = true;
 	private double scale_factor;
+	private bool is_winding_up = false;
+	
+	private bool  mouse_is_down = false;
+	
+	private Phase current_phase;
+	
+	const string FONT_DESCRIPTION = "Sans Bold 20";
+	const long   WIND_UP_DURATION = 500000;
+	
+	private TimeVal start_time;
+	private long    final_wind_up_frame;
+	private TimeoutSource wind_up_handler;
+	
 	
 	public Gtk.Window get_pom_gtk_window () {
 		if (this._pom_gtk_window == null) {
@@ -954,12 +1001,28 @@ public class VisualTimer : TimerUI {
 				this.app.get_builder().get_object("pom-gtk-window") as Gtk.Window ;
 			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
 			
+			if (this.preferences.is_positioned) {
+				this._pom_gtk_window.move(this.preferences.pos_x,this.preferences.pos_y);
+			}
+			
 			this._pom_gtk_window.set_opacity (this.preferences.opacity/100);
 			var opacity_handler = this.preferences.notify["opacity"].connect(() => {
 					this.get_pom_gtk_window().set_opacity (this.preferences.opacity/100);
 				});
 			this._pom_gtk_window.destroy.connect(() => {
 					this.preferences.disconnect (opacity_handler);
+				});
+			this._pom_gtk_window.delete_event.connect((_) => {
+					int root_x, root_y;
+					this._pom_gtk_window.get_position (out root_x, out root_y);
+					this.preferences.position (root_x,root_y);
+					
+					this._pom_gtk_window                 = null;
+					this._pom_gtk_surface                = null;
+					this.app.get_builder().add_objects_from_file (this.app.UI_FILE, {"pom-gtk-window",null});
+					
+					this.is_shown = false;
+					return false;
 				});
 				
 			this.get_pom_gtk_surface().set_size_request (this.preferences.size, this.preferences.size);
@@ -973,6 +1036,54 @@ public class VisualTimer : TimerUI {
 					this.preferences.disconnect (size_handler);
 				});
 			get_pom_gtk_surface().draw.connect( this.redraw_surface );
+			
+			get_pom_gtk_surface().button_press_event.connect ((event) => {
+					if (event.type != Gdk.EventType.BUTTON_PRESS) return false;
+					switch (event.button) {
+						case 3:
+							this.get_timer_dialog_menu().popup (
+								null,
+								null,
+								null,
+								event.button,
+								event.time);
+							break;
+						default:
+							var release      = new DisconnectionManager ();
+							var leave        = new DisconnectionManager ();
+							var double_click = new DisconnectionManager ();
+							
+							release.object = 
+							leave.object   =
+							double_click.object =
+								get_pom_gtk_surface();
+							release.handler_id = get_pom_gtk_surface().button_release_event.connect((event) => {
+									this.run_button();
+									release.disconnect();
+									leave.disconnect();
+									double_click.disconnect();
+									return true;
+								});
+							leave.handler_id   = get_pom_gtk_surface().leave_notify_event.connect ((event) => {
+									release.disconnect();
+									leave.disconnect();
+									double_click.disconnect();
+									return false;
+								});
+							double_click.handler_id = get_pom_gtk_surface().button_press_event.connect ((event) => {
+									if (event.type == Gdk.EventType.2BUTTON_PRESS || 
+										event.type == Gdk.EventType.3BUTTON_PRESS) {
+										release.disconnect();
+										leave.disconnect();
+										double_click.disconnect();
+										return true;
+									}
+									return false;
+								});
+							break;
+					}
+					return true;
+				});
 		}
 		return this._pom_gtk_window;
 	}
@@ -992,14 +1103,153 @@ public class VisualTimer : TimerUI {
 		}
 		return this._current_frame;
 	}
+	private Gtk.Menu get_timer_dialog_menu() {
+		if (this._timer_dialog_menu == null) {
+			this._timer_dialog_menu = 
+				this.app.get_builder().get_object("timer-dialog-menu") as Gtk.Menu ;
+			this.get_timer_dialog_restart().activate.connect(() =>
+				{
+					this.current_phase = Phase.POMODORO_1;
+					this.wind(this.app.get_app_config().pomodoro_time,0,get_timer_dialog_menu());
+					this.get_timer_dialog_restart().label = "Restart Pomodoro";
+				});
+			this.get_timer_dialog_stop().activate.connect(() =>
+				{
+					this.cancel ();
+				});
+			this.get_timer_dialog_short_break().activate.connect(() =>
+				{
+					this.current_phase = Phase.BREAK_1;
+					this.wind(this.app.get_app_config().s_break_time,0,get_timer_dialog_menu());
+					this.get_timer_dialog_restart().label = "Start Pomodoro";
+				});
+			this.get_timer_dialog_long_break().activate.connect(() =>
+				{
+					this.current_phase = Phase.BREAK_4;
+					this.wind(this.app.get_app_config().l_break_time,0,get_timer_dialog_menu());
+					this.get_timer_dialog_restart().label = "Start Pomodoro";
+				});
+			this.get_timer_dialog_quit().activate.connect(() =>
+				{
+					Gtk.main_quit() ;
+				});
+		}
+		return this._timer_dialog_menu;
+	}
+	private Gtk.MenuItem get_timer_dialog_restart() {
+		if (this._timer_dialog_restart == null) {
+			this._timer_dialog_restart = 
+				this.app.get_builder().get_object("timer-dialog-restart") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_restart;
+	}
+	private Gtk.MenuItem get_timer_dialog_stop() {
+		if (this._timer_dialog_stop == null) {
+			this._timer_dialog_stop = 
+				this.app.get_builder().get_object("timer-dialog-stop") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_stop;
+	}
+	private Gtk.MenuItem get_timer_dialog_short_break () {
+		if (this._timer_dialog_short_break == null) {
+			this._timer_dialog_short_break = 
+				this.app.get_builder().get_object("timer-dialog-short-break") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_short_break;
+	}
+	private Gtk.MenuItem get_timer_dialog_long_break () {
+		if (this._timer_dialog_long_break == null) {
+			this._timer_dialog_long_break = 
+				this.app.get_builder().get_object("timer-dialog-long-break") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_long_break;
+	}
+	private Gtk.MenuItem get_timer_dialog_quit () {
+		if (this._timer_dialog_quit == null) {
+			this._timer_dialog_quit = 
+				this.app.get_builder().get_object("timer-dialog-quit") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_quit;
+	}
+	
 	public bool redraw_surface (Cairo.Context cr) {
 		cr.scale(this.scale_factor,this.scale_factor);
 		cr.set_source_surface (this.get_current_frame(),0,0);
 		cr.set_operator(Cairo.Operator.SOURCE);
+		
 		cr.paint ();
+		
+		if (!this.is_running) {
+			cr.set_source_rgba (1,1,1,0.8);
+			var    layout = Pango.cairo_create_layout (cr);
+			string message ;
+			switch (this.current_phase) {
+				case Phase.POMODORO_1:
+				case Phase.POMODORO_2:
+				case Phase.POMODORO_3:
+				case Phase.POMODORO_4:
+					message = "Start Pomodoro";
+					break;
+				case Phase.BREAK_1:
+					message = "¹Start Break";
+					break;
+				case Phase.BREAK_2:
+					message = "²Start Break";
+					break;
+				case Phase.BREAK_3:
+					message = "³Start Break";
+					break;
+				case Phase.BREAK_4:
+					message = "⁴Start Long Break";
+					break;
+				default: error ("Should be unreachable\n");
+			}
+			
+			var font_description = Pango.FontDescription.from_string (this.FONT_DESCRIPTION);
+			double scale_by = 1024;
+			
+			layout.set_width((int) scale_by*200);
+			layout.set_alignment (Pango.Alignment.CENTER);
+			layout.set_font_description(font_description);
+			layout.set_text(message,-1);
+			Pango.cairo_update_layout (cr, layout);
+			
+			int width, height;
+			layout.get_size (out width, out height);
+			
+			
+			cr.move_to (
+				100 - ((double) width)/ scale_by / 2, 
+				100 - ((double) height)/ scale_by / 2);
+			cr.set_operator(Cairo.Operator.OVER);
+			Pango.cairo_show_layout (cr,layout);
+			
+		}
 		return true;
 	}
 	private int frame_should_be () {
+		if (!this.is_running) return 0;
+		if (this.is_winding_up) {
+			var current_time  = new TimeVal (); 
+			var secs_diff     = current_time.tv_sec - this.start_time.tv_sec;
+			var usecs_diff    = current_time.tv_usec - this.start_time.tv_usec;
+			
+			while (usecs_diff < 0) {
+				secs_diff--;
+				usecs_diff += 1000000;
+			}
+			if (secs_diff == 0 && usecs_diff < WIND_UP_DURATION) {
+				return (int) (final_wind_up_frame*usecs_diff/WIND_UP_DURATION);
+			}
+			this.is_winding_up = false;
+			this.wind_up_handler.destroy ();
+			this.wind_up_handler = null;
+		}
 		int minutes, seconds;
 		this.get_time (out minutes, out seconds);
 		return (minutes*60 + seconds)/this.seconds_per_frame ;
@@ -1022,10 +1272,16 @@ public class VisualTimer : TimerUI {
 	}
 	public override void toggle_show_hide () {
 		if (this.is_shown) {
+			int root_x, root_y;
+			this._pom_gtk_window.get_position (out root_x, out root_y);
+			this.preferences.position (root_x,root_y);
 			this.get_pom_gtk_window().hide();
 			this.is_shown = false;
 		}
 		else {
+			if (this.preferences.is_positioned) {
+				this.get_pom_gtk_window().move(this.preferences.pos_x,this.preferences.pos_y);
+			}
 			this.get_pom_gtk_window().show_all();
 			this.is_shown = true;
 		}
@@ -1034,8 +1290,13 @@ public class VisualTimer : TimerUI {
 		return this.get_pom_gtk_surface ();
 	}
 	public override void destroy () {
-		if (this.app.ref_count == 0 || this._pom_gtk_window == null) 
-			return;
+		if (this._pom_gtk_window == null) return;
+		
+		int root_x, root_y;
+		this._pom_gtk_window.get_position (out root_x, out root_y);
+		this.preferences.position (root_x,root_y);
+		
+		if (this.app.ref_count == 0)      return;
 		this._pom_gtk_window.destroy ();
 		this.app.get_builder().add_objects_from_file (this.app.UI_FILE, {"pom-gtk-window",null});
 	}
@@ -1043,10 +1304,76 @@ public class VisualTimer : TimerUI {
 		var that = new VisualTimer (app, prefs as VisualTimerPreferences) ;
 		return that as TimerUI;
 	}
+	
+	construct {
+		this.wind.connect_after (this.do_wind);
+		this.cancel.connect_after (this.do_cancel);
+		this.ring.connect_after (this.do_ring);
+	}
+	public void do_wind (int minutes, int seconds=0,Gtk.Widget? _ignore) {
+		this.is_winding_up     = false;
+		final_wind_up_frame    = this.frame_should_be ();
+		
+		this.start_time        = new TimeVal ();
+		this.is_winding_up     = true;
+		
+		this.wind_up_handler   = new TimeoutSource (25);
+		this.wind_up_handler.set_callback (() => {
+				get_pom_gtk_surface().queue_draw();
+				return true;
+			});
+		this.wind_up_handler.set_priority (10);
+		this.wind_up_handler.attach (null);
+	}
+	public void do_cancel () {
+		this.get_pom_gtk_surface().queue_draw();
+	}
+	public void do_ring () {
+		this.current_phase += 1;
+		if (this.current_phase > Phase.BREAK_4)
+			this.current_phase = Phase.POMODORO_1;
+		this.get_pom_gtk_surface().queue_draw();
+	}
+	
+	public void run_button () {
+		this.app.debug ("Reached run_button\n");
+		if (this.is_running) {
+			this.cancel ();
+			return;
+		}
+		switch (this.current_phase) {
+			case Phase.POMODORO_1:
+			case Phase.POMODORO_2:
+			case Phase.POMODORO_3:
+			case Phase.POMODORO_4:
+				this.wind(this.app.get_app_config().pomodoro_time,0,this.get_pom_gtk_surface());
+				this.get_timer_dialog_restart().label = "Restart Pomodoro";
+				break;
+			case Phase.BREAK_1:
+			case Phase.BREAK_2:
+			case Phase.BREAK_3:
+				this.wind(this.app.get_app_config().s_break_time,0,this.get_pom_gtk_surface());
+				this.get_timer_dialog_restart().label = "Start Pomodoro";
+				break;
+			case Phase.BREAK_4:
+				this.wind(this.app.get_app_config().s_break_time,0,this.get_pom_gtk_surface());
+				this.get_timer_dialog_restart().label = "Start Pomodoro";
+				break;
+		}
+	}
 }
 public class VisualTimerPreferences : PreferenceEnabled {
-	public double opacity {get; set;}
-	public int    size    {get; set;}
+	public double opacity       {get; set;}
+	public int    size          {get; set;}
+	public int    pos_x         {get; private set;}
+	public int    pos_y         {get; private set;}
+	public bool   is_positioned {get; private set;}
+	
+	public void   position (int x, int y) {
+		this.pos_x = x;
+		this.pos_y = y;
+		this.is_positioned = true;
+	}
 	public override void configure (KeyFile key_file) {
 		try {
 			this.opacity = key_file.get_double ("VisualTimerPreferences","opacity");
@@ -1062,15 +1389,30 @@ public class VisualTimerPreferences : PreferenceEnabled {
 			this.size  = 180;
 			this.has_changed();
 		}
+		
+		try {
+			this.pos_x = key_file.get_integer ("VisualTimerPreferences","pos-x");
+			this.pos_y = key_file.get_integer ("VisualTimerPreferences","pos-y");
+			this.is_positioned = true;
+		}
+		catch (KeyFileError err) {
+			this.is_positioned = false;
+			this.has_changed();
+		}
 	}
 	public override void configure_from_default () {
 		this.opacity = 1;
 		this.size    = 180;
+		this.is_positioned = false;
 		this.has_changed();
 	}
 	public override void commit (KeyFile key_file) {
 		key_file.set_double ("VisualTimerPreferences","opacity",this.opacity);
 		key_file.set_integer ("VisualTimerPreferences","size",this.size);
+		if (this.is_positioned) {
+			key_file.set_integer ("VisualTimerPreferences","pos-x",this.pos_x);
+			key_file.set_integer ("VisualTimerPreferences","pos-y",this.pos_y);
+		}
 	}
 	public static PreferenceEnabled FACTORY_FUNC () {
 		var that = new VisualTimerPreferences ();
@@ -1086,6 +1428,7 @@ public class VisualTimerPreferencesDialog : PreferenceDialogEnabled {
 	private Gtk.Grid _subdialog;
 	private Gtk.Adjustment _opacity_adjustment;
 	private Gtk.Adjustment _size_adjustment;
+	
 	private VisualTimerPreferences preferences;
 	
 	private weak VisualTimer ui;
