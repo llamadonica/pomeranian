@@ -33,6 +33,7 @@ using GLib;
 public class Main : GLib.Object {
 	static int main (string[] args) {	
 		Gtk.init(ref args);
+		Gst.init(ref args);
 		
 		var app = new Pomeranian.App();
 		
@@ -385,6 +386,7 @@ public class App : GLib.Object {
 	public const string PROGRAM_NAME = "Pomeranian";
 	public const string VERSION = Config.VERSION;
 	public       string UI_FILE ;
+	private SoundLoop?  sound_loop;
 	
 	public void debug(string format, ...) {
 		if (this.DEBUG_STATE) {
@@ -415,7 +417,7 @@ public class App : GLib.Object {
 	}
 	public TimerUI get_ui () {
 		if (this._ui == null) {
-			this._ui = this.get_ui_factory().build(_(this.get_app_config().ui_view), this);
+			this._ui = this.get_ui_factory().build(this.get_app_config().ui_view, this);
 		}
 		return this._ui;
 	}
@@ -509,7 +511,20 @@ public class App : GLib.Object {
 					this._ui = null;
 					var ui = this.get_ui();
 					if (is_running)
-						ui.wind( minutes, seconds );
+						ui.wind (minutes, seconds);
+					get_ui().ring.connect ((widget) =>
+						{
+							get_sound_handler().play (SoundBite.RING, widget);
+							this.sound_loop.cancel ();
+						});
+					get_ui().cancel.connect(() => {
+							this.sound_loop.cancel ();
+						});
+					get_ui().wind.connect ((_minutes,_seconds,widget) =>
+						{
+							get_sound_handler().play (SoundBite.WIND, widget);
+							this.sound_loop = get_sound_handler().loop(SoundBite.TICK_TOCK, null);
+						});
 				});
 		return this.get_app_config();
 	}
@@ -525,13 +540,14 @@ public class App : GLib.Object {
 		if (this._sound_handler_factory == null) {
 			this._sound_handler_factory = new SoundHandlerFactory (this.get_app_config());
 			
-			this._sound_handler_factory.register (_("Canberra"), CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
+			this._sound_handler_factory.register (_("Canberra"),  CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
+			this._sound_handler_factory.register (_("GStreamer"), GStreamerSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
 		}
 		return this._sound_handler_factory;
 	}
 	private SoundHandler get_sound_handler () {
 		if (this._sound_handler == null) {
-			this._sound_handler = this.get_sound_handler_factory().build(_("Canberra"), this);
+			this._sound_handler = this.get_sound_handler_factory().build(_("GStreamer"), this);
 		}
 		return this._sound_handler;
 	}
@@ -550,10 +566,15 @@ public class App : GLib.Object {
 		get_ui().ring.connect ((widget) =>
 			{
 				get_sound_handler().play (SoundBite.RING, widget);
+				this.sound_loop.cancel ();
+			});
+		get_ui().cancel.connect(() => {
+				this.sound_loop.cancel ();
 			});
 		get_ui().wind.connect ((_minutes,_seconds,widget) =>
 			{
 				get_sound_handler().play (SoundBite.WIND, widget);
+				this.sound_loop = get_sound_handler().loop(SoundBite.TICK_TOCK, null);
 			});
 	}
 }
@@ -1537,6 +1558,7 @@ public class SoundHandlerFactory : GLib.Object {
 }
 public abstract class SoundHandler : GLib.Object {
 	public abstract SoundEvent? play (SoundBite sound, Gtk.Widget? widget);
+	public abstract SoundLoop?  loop (SoundBite sound, Gtk.Widget? widget);
 	public abstract void destroy ();
 	~SoumdHandler () {
 		this.destroy ();
@@ -1565,6 +1587,9 @@ public class CanberraSoundHandler : SoundHandler {
 		}
 		return null;
 	}
+	public override SoundLoop? loop (SoundBite _1, Gtk.Widget? _2 ) {
+		return null;
+	}
 	public CanberraSoundHandler (App app) {
 		this.app = app;
 		this.canberra_context = CanberraGtk.context_get ();
@@ -1575,6 +1600,68 @@ public class CanberraSoundHandler : SoundHandler {
 	}
 	public override void destroy () {return;}
 }
+public class GStreamerSoundHandler : SoundHandler {
+	private unowned App app;
+	private string? ringing_sound;
+	private string? wind_sound;
+	private string? ticking_sound;
+	private int  index = 0;
+	
+	public GStreamerSoundHandler (App app) {
+		this.app = app;
+		// This needs to be moved to preferences.
+		this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
+		this.wind_sound    = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
+		this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+	}
+	public static SoundHandler FACTORY_FUNC (App app)  {
+		var that = new GStreamerSoundHandler (app);
+		return that as SoundHandler;
+	}
+	private string? parse_soundbite (SoundBite id) {
+		switch (id) {
+			case SoundBite.RING:
+				return this.ringing_sound;
+			case SoundBite.WIND:
+				return this.wind_sound;
+			case SoundBite.TICK_TOCK:
+				return this.ticking_sound;
+			default:
+				return null;
+		}
+	}
+	public override void destroy () {return;}
+	private Gst.Pipeline? play_or_loop (SoundBite sound,out string uri = null) {
+		var file_uri = this.parse_soundbite(sound);
+		uri = file_uri;
+		
+		if (file_uri == null) return null;
+		
+		dynamic Gst.Pipeline playbin  = Gst.ElementFactory.make("playbin",("pipeline-%d").printf(this.index)) as Gst.Pipeline;
+		dynamic Gst.Element fakesink = Gst.ElementFactory.make("fakesink",("fakesink-%d").printf(this.index++));
+		playbin.video_sink = fakesink;
+		playbin.uri        = file_uri;
+		return playbin;
+	}
+	public override SoundEvent? play (SoundBite sound, Gtk.Widget? _) {
+		Gst.Pipeline? playbin  = this.play_or_loop (sound);
+		if (playbin == null) return null;
+		
+		playbin.set_state(Gst.State.PLAYING);
+		return new GStreamerEvent (playbin) as SoundEvent;
+	}
+	public override SoundLoop? loop (SoundBite sound, Gtk.Widget? _) {
+		string uri;
+		Gst.Pipeline? playbin  = this.play_or_loop (sound);
+		if (playbin == null) return null;
+		
+		var loop_control = new GStreamerLoop (playbin) as SoundLoop;
+		
+		playbin.set_state(Gst.State.PLAYING);
+		return loop_control;
+	}
+}
+
 public class CanberraEvent :  SoundEvent {
 	private uint32 _id;
 	private weak CanberraSoundHandler handler;
@@ -1584,6 +1671,47 @@ public class CanberraEvent :  SoundEvent {
 	}
 	public override void cancel () {
 		this.handler.canberra_context.cancel (this._id);
+	}
+}
+public class GStreamerEvent : SoundEvent {
+	private weak Gst.Element playbin;
+	
+	public GStreamerEvent (Gst.Element playbin) {
+		this.playbin = playbin;
+	}
+	public override void cancel () {
+		this.playbin.set_state(Gst.State.NULL);
+	} 
+}
+public abstract class SoundLoop : SoundEvent {
+}
+public class GStreamerLoop : SoundLoop {
+	private bool is_looping;
+	private SoundBite sound;
+	private string uri;
+	private Gst.Pipeline playbin;
+	
+	
+	bool bus_watcher (Gst.Bus bus, Gst.Message message) {
+		switch (message.type) {
+			case Gst.MessageType.EOS:
+				if (this.is_looping) 
+					playbin.seek_simple (Gst.Format.TIME, Gst.SeekFlags.FLUSH, 0);
+				return this.is_looping;
+			default: break;
+		}
+		return true;
+	}
+	public GStreamerLoop (Gst.Pipeline playbin) {
+		this.is_looping = true;
+		this.uri = uri;
+		this.playbin = playbin;
+		var bus = playbin.get_bus ();
+		bus.add_watch (this.bus_watcher);
+	}
+	public override void cancel () {
+		this.is_looping = false;
+		this.playbin.set_state(Gst.State.NULL);
 	}
 }
 }

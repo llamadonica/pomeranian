@@ -28,6 +28,8 @@ def configure(conf):
             atleast_version='3.4.0', mandatory=True, args='--cflags --libs')
     conf.check_cfg(package='gee-1.0', uselib_store='GEE',
             atleast_version='0.6.0', mandatory=True, args='--cflags --libs')
+    conf.check_cfg(package='gstreamer-0.10', uselib_store='GSTREAMER',
+            mandatory=True, args='--cflags --libs')
     conf.check_cfg(package='libcanberra-gtk3', uselib_store='CANBERRA',
            mandatory=True, args='--cflags --libs')
     
