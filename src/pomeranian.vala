@@ -1030,6 +1030,26 @@ public class VisualTimer : TimerUI {
 			var opacity_handler = this.preferences.notify["opacity"].connect(() => {
 					this.get_pom_gtk_window().set_opacity (this.preferences.opacity/100);
 				});
+			this._pom_gtk_window.realize.connect_after(() => {
+					Cairo.RectangleInt[] input_region_temp = new Cairo.RectangleInt[input_region.length];
+					int j = 0;
+					for (int i = 0; i<input_region.length; i++) {
+						input_region_temp[j].x = input_region[i].x*this.preferences.size / 240;
+						input_region_temp[j].y = input_region[i].y*this.preferences.size / 240;
+						input_region_temp[j].width = (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp[j].x;
+						input_region_temp[j].height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp[j].y;
+						if (input_region_temp[j].width > 0 && input_region_temp[j].height > 0) j++;
+						this.app.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
+					}
+					Cairo.RectangleInt[] input_region_new = new Cairo.RectangleInt[j + 1];
+					for (int i = 0; i<=j; i++) 
+						input_region_new[i] = input_region_temp[i];
+					
+					this.get_pom_gtk_window().set_keep_above(true); 
+					Cairo.Region region   = new Cairo.Region.rectangles(input_region_new);
+					this.get_pom_gtk_window().get_window().input_shape_combine_region(region,0,0);
+					this.app.debug("Input shape combined. %d\n", input_region_temp.length);
+				});
 			this._pom_gtk_window.destroy.connect(() => {
 					this.preferences.disconnect (opacity_handler);
 				});
@@ -1052,6 +1072,23 @@ public class VisualTimer : TimerUI {
 					this.get_pom_gtk_surface().set_size_request (this.preferences.size, this.preferences.size);
 					this.scale_factor = ((double) this.preferences.size)/240 ;
 					this.get_pom_gtk_surface().queue_draw();
+					Cairo.RectangleInt[] input_region_temp = new Cairo.RectangleInt[input_region.length];
+					int j = 0;
+					for (int i = 0; i<input_region.length; i++) {
+						input_region_temp[j].x = input_region[i].x*this.preferences.size / 240;
+						input_region_temp[j].y = input_region[i].y*this.preferences.size / 240;
+						input_region_temp[j].width = (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp[j].x;
+						input_region_temp[j].height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp[j].y;
+						if (input_region_temp[j].width > 0 && input_region_temp[j].height > 0) j++;
+						this.app.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
+					}
+					Cairo.RectangleInt[] input_region_new = new Cairo.RectangleInt[j + 1];
+					for (int i = 0; i<=j; i++) 
+						input_region_new[i] = input_region_temp[i];
+					
+					Cairo.Region region   = new Cairo.Region.rectangles(input_region_new);
+					this.get_pom_gtk_window().get_window().input_shape_combine_region(region,0,0);
+					this.app.debug("Input shape combined. %d\n", input_region_temp.length);
 				});
 			this.get_pom_gtk_surface().destroy.connect(() => {
 					this.preferences.disconnect (size_handler);

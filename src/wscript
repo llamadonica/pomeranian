@@ -10,5 +10,5 @@ def build(bld):
           uselib = ['GIO','GTK','GEE','CANBERRA','GSTREAMER'],
           target = 'pomeranian',
           vala_target_glib = '2.32',
-          source = ['pomeranian.vala','input_rectangles.vala']
+          source = ['pomeranian.vala','input_rectangles.vala'],
           packages = ['config','gio-2.0','gtk+-3.0','gee-1.0','libcanberra','libcanberra-gtk','gstreamer-0.10','cairo'] )
