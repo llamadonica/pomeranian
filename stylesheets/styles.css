@@ -791,6 +791,12 @@ section #title {
   outline: none;
   margin: 0 0 50px 0;
   padding: 0 0 5px 0;
+  background-image: url(../images/pomodoro.png);
+  background-repeat: no-repeat;
+  background-size: 180px 180px;
+  background-position-x: 15px;
+  background-position-y: -15px;
+  min-height: 150px;
 }
 section #title h1 {
   font-family: 'OpenSansLight', "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -798,6 +804,7 @@ section #title h1 {
   font-size: 40px;
   text-align: center;
   line-height: 36px;
+  padding-top: 35px;
 }
 section #title p {
   color: #d7cfbe;
@@ -805,6 +812,7 @@ section #title p {
   font-weight: normal;
   font-size: 18px;
   text-align: center;
+  padding-bottom: 30px;
 }
 section #title .credits {
   font-size: 11px;
