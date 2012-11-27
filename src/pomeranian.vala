@@ -219,7 +219,9 @@ public abstract class PreferenceDialogEnabled : GLib.Object {
 public class PreferenceDialog : GLib.Object {
 	private weak App app;
 	private PreferenceDialogEnabled? ui_sub_dialog;
+	private PreferenceDialogEnabled? sound_sub_dialog;
 	private Gtk.Expander _ui_expander;
+	private Gtk.Expander _audio_expander;
 	
 	private string previous_ui_view;
 	
@@ -230,6 +232,13 @@ public class PreferenceDialog : GLib.Object {
 		}
 		return this._ui_expander;
 	}
+	private Gtk.Expander get_audio_expander () {
+		if (this._ui_expander == null) {
+			this._ui_expander = this.app.get_builder().get_object ("preferences-dialog-ui-expander") as Gtk.Expander;
+		}
+		return this._ui_expander;
+	}
+	
 	private Gtk.Dialog get_options_dialog () throws Error {
 		if (this._options_dialog == null) {
 			int l_break_time, s_break_time, pomodoro_time;
@@ -362,6 +371,17 @@ public class PreferenceDialog : GLib.Object {
 					input3.text      = this.app.get_app_config().l_break_time.to_string (); 
 				});
 			
+			this.sound_sub_dialog = this.app.get_sound_handler().preference_dialog;
+			if (this.sound_sub_dialog != null) 
+			{
+				this.get_audio_expander().sensitive = true;
+				this.sound_sub_dialog.instantiate (this.get_audio_expander());
+			} 
+			else
+			{
+				this.get_audio_expander().expanded  = false;
+				this.get_audio_expander().sensitive = false;
+			}
 			
 		}
 		return this._options_dialog ;
@@ -545,7 +565,7 @@ public class App : GLib.Object {
 		}
 		return this._sound_handler_factory;
 	}
-	private SoundHandler get_sound_handler () {
+	public SoundHandler get_sound_handler () {
 		if (this._sound_handler == null) {
 			this._sound_handler = this.get_sound_handler_factory().build(_("GStreamer"), this);
 		}
@@ -1594,6 +1614,7 @@ public class SoundHandlerFactory : GLib.Object {
 	}
 }
 public abstract class SoundHandler : GLib.Object {
+	public PreferenceDialogEnabled? preference_dialog {get; protected set;}
 	public abstract SoundEvent? play (SoundBite sound, Gtk.Widget? widget);
 	public abstract SoundLoop?  loop (SoundBite sound, Gtk.Widget? widget);
 	public abstract void destroy ();
