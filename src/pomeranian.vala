@@ -233,10 +233,10 @@ public class PreferenceDialog : GLib.Object {
 		return this._ui_expander;
 	}
 	private Gtk.Expander get_audio_expander () {
-		if (this._ui_expander == null) {
-			this._ui_expander = this.app.get_builder().get_object ("preferences-dialog-ui-expander") as Gtk.Expander;
+		if (this._audio_expander == null) {
+			this._audio_expander = this.app.get_builder().get_object ("preferences-dialog-audio-expander") as Gtk.Expander;
 		}
-		return this._ui_expander;
+		return this._audio_expander;
 	}
 	
 	private Gtk.Dialog get_options_dialog () throws Error {
@@ -561,7 +561,7 @@ public class App : GLib.Object {
 			this._sound_handler_factory = new SoundHandlerFactory (this.get_app_config());
 			
 			this._sound_handler_factory.register (_("Canberra"),  CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
-			this._sound_handler_factory.register (_("GStreamer"), GStreamerSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
+			this._sound_handler_factory.register (_("GStreamer"), GStreamerSoundHandler.FACTORY_FUNC, GStreamerSoundHandlerPreferences.FACTORY_FUNC);
 		}
 		return this._sound_handler_factory;
 	}
@@ -1572,6 +1572,7 @@ public class VisualTimerPreferencesDialog : PreferenceDialogEnabled {
 		this.preferences.opacity = this.previous_opacity;
 		this.preferences.size    = this.previous_size;
 	}
+
 }
 
 public enum SoundBite {
@@ -1658,6 +1659,54 @@ public class CanberraSoundHandler : SoundHandler {
 	}
 	public override void destroy () {return;}
 }
+public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
+	public  string ringing_sound   {get;set;}
+	public  string wind_sound      {get;set;}
+	public  string ticking_sound   {get;set;}
+	
+	public override void configure (KeyFile key_file) {
+		try {
+			this.ringing_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ringing-sound");
+		}
+		catch (KeyFileError err) {
+			this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
+			this.has_changed();
+		}
+		try {
+			this.wind_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","wind-sound");
+		}
+		catch (KeyFileError err) {
+			this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
+			this.has_changed();
+		}
+		try {
+			this.ticking_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ticking-sound");
+		}
+		catch (KeyFileError err) {
+			this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+			this.has_changed();
+		}
+	}
+	public override void configure_from_default () {
+		this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
+		this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
+		this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+	}
+	public override void commit (KeyFile key_file) {
+		key_file.set_string ("GStreamerSoundHandlerPreferences","ringing-sound",this.ringing_sound);
+		key_file.set_string ("GStreamerSoundHandlerPreferences","wind-sound",this.wind_sound);
+		key_file.set_string ("GStreamerSoundHandlerPreferences","ticking-sound",this.ticking_sound);
+	}
+	public static PreferenceEnabled FACTORY_FUNC () {
+		var that = new GStreamerSoundHandlerPreferences ();
+		return that as PreferenceEnabled;
+	}
+	construct {
+		this.notify.connect((_1,_2) => {
+				this.has_changed ();
+			});
+	}
+}
 public class GStreamerSoundHandler : SoundHandler {
 	private unowned App app;
 	private string? ringing_sound;
@@ -1665,15 +1714,15 @@ public class GStreamerSoundHandler : SoundHandler {
 	private string? ticking_sound;
 	private int  index = 0;
 	
-	public GStreamerSoundHandler (App app) {
+	public GStreamerSoundHandler (App app,GStreamerSoundHandlerPreferences preferences) {
 		this.app = app;
 		// This needs to be moved to preferences.
 		this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
 		this.wind_sound    = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
 		this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
 	}
-	public static SoundHandler FACTORY_FUNC (App app)  {
-		var that = new GStreamerSoundHandler (app);
+	public static SoundHandler FACTORY_FUNC (App app, PreferenceEnabled? preferences)  {
+		var that = new GStreamerSoundHandler (app,preferences as GStreamerSoundHandlerPreferences);
 		return that as SoundHandler;
 	}
 	private string? parse_soundbite (SoundBite id) {
