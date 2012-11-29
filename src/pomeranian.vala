@@ -64,6 +64,7 @@ public class DisconnectionManager : Object {
 
 [CCode (has_target = false)]
 public delegate PreferenceEnabled? PreferenceFactoryFunc () ;
+
 public PreferenceEnabled? NO_PREFERENCES () {
 	return null;
 }
@@ -710,6 +711,7 @@ public abstract class TimerUI : Object {
 		this.destroy ();
 	}
 }
+
 public class GtkTimer : TimerUI {
 	enum CurrentButtonAct {
 		START_POMODORO,
@@ -1583,9 +1585,6 @@ public enum SoundBite {
 }
 [CCode (has_target = false)]
 public delegate SoundHandler SoundHandlerFactoryFunc (App app, PreferenceEnabled? pref) ;
-public abstract class SoundEvent : GLib.Object {
-	public abstract void cancel ();
-}
 
 public class SoundHandlerFactory : GLib.Object {
 	private weak Preferences preferences;
@@ -1614,6 +1613,12 @@ public class SoundHandlerFactory : GLib.Object {
 		}
 	}
 }
+
+public abstract class SoundEvent : GLib.Object {
+	public abstract void cancel ();
+}
+public abstract class SoundLoop : SoundEvent {
+}
 public abstract class SoundHandler : GLib.Object {
 	public PreferenceDialogEnabled? preference_dialog {get; protected set;}
 	public abstract SoundEvent? play (SoundBite sound, Gtk.Widget? widget);
@@ -1623,6 +1628,7 @@ public abstract class SoundHandler : GLib.Object {
 		this.destroy ();
 	}
 }
+
 public class CanberraSoundHandler : SoundHandler {
 	public unowned Canberra.Context canberra_context ;
 	private unowned App app;
@@ -1659,54 +1665,18 @@ public class CanberraSoundHandler : SoundHandler {
 	}
 	public override void destroy () {return;}
 }
-public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
-	public  string ringing_sound   {get;set;}
-	public  string wind_sound      {get;set;}
-	public  string ticking_sound   {get;set;}
-	
-	public override void configure (KeyFile key_file) {
-		try {
-			this.ringing_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ringing-sound");
-		}
-		catch (KeyFileError err) {
-			this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
-			this.has_changed();
-		}
-		try {
-			this.wind_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","wind-sound");
-		}
-		catch (KeyFileError err) {
-			this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
-			this.has_changed();
-		}
-		try {
-			this.ticking_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ticking-sound");
-		}
-		catch (KeyFileError err) {
-			this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
-			this.has_changed();
-		}
+public class CanberraEvent :  SoundEvent {
+	private uint32 _id;
+	private weak CanberraSoundHandler handler;
+	public CanberraEvent  (uint32 id, CanberraSoundHandler handler) {
+		this._id = id;
+		this.handler = handler;
 	}
-	public override void configure_from_default () {
-		this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
-		this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
-		this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
-	}
-	public override void commit (KeyFile key_file) {
-		key_file.set_string ("GStreamerSoundHandlerPreferences","ringing-sound",this.ringing_sound);
-		key_file.set_string ("GStreamerSoundHandlerPreferences","wind-sound",this.wind_sound);
-		key_file.set_string ("GStreamerSoundHandlerPreferences","ticking-sound",this.ticking_sound);
-	}
-	public static PreferenceEnabled FACTORY_FUNC () {
-		var that = new GStreamerSoundHandlerPreferences ();
-		return that as PreferenceEnabled;
-	}
-	construct {
-		this.notify.connect((_1,_2) => {
-				this.has_changed ();
-			});
+	public override void cancel () {
+		this.handler.canberra_context.cancel (this._id);
 	}
 }
+
 public class GStreamerSoundHandler : SoundHandler {
 	private unowned App app;
 	private string? ringing_sound;
@@ -1768,18 +1738,132 @@ public class GStreamerSoundHandler : SoundHandler {
 		return loop_control;
 	}
 }
-
-public class CanberraEvent :  SoundEvent {
-	private uint32 _id;
-	private weak CanberraSoundHandler handler;
-	public CanberraEvent  (uint32 id, CanberraSoundHandler handler) {
-		this._id = id;
-		this.handler = handler;
+public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
+	public  string ringing_sound   {get;set;}
+	public  string wind_sound      {get;set;}
+	public  string ticking_sound   {get;set;}
+	
+	public override void configure (KeyFile key_file) {
+		try {
+			this.ringing_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ringing-sound");
+		}
+		catch (KeyFileError err) {
+			this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
+			this.has_changed();
+		}
+		try {
+			this.wind_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","wind-sound");
+		}
+		catch (KeyFileError err) {
+			this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
+			this.has_changed();
+		}
+		try {
+			this.ticking_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ticking-sound");
+		}
+		catch (KeyFileError err) {
+			this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+			this.has_changed();
+		}
 	}
-	public override void cancel () {
-		this.handler.canberra_context.cancel (this._id);
+	public override void configure_from_default () {
+		this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
+		this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
+		this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+	}
+	public override void commit (KeyFile key_file) {
+		key_file.set_string ("GStreamerSoundHandlerPreferences","ringing-sound",this.ringing_sound);
+		key_file.set_string ("GStreamerSoundHandlerPreferences","wind-sound",this.wind_sound);
+		key_file.set_string ("GStreamerSoundHandlerPreferences","ticking-sound",this.ticking_sound);
+	}
+	public static PreferenceEnabled FACTORY_FUNC () {
+		var that = new GStreamerSoundHandlerPreferences ();
+		return that as PreferenceEnabled;
+	}
+	construct {
+		this.notify.connect((_1,_2) => {
+				this.has_changed ();
+			});
 	}
 }
+public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
+	private Gtk.Grid _subdialog;
+	private Gtk.FileChooserButton _wind_sound_chooser;
+	private Gtk.FileChooserButton _ring_sound_chooser;
+	private Gtk.FileChooserButton _tick_sound_chooser;
+	
+	private GStreamerSoundHandlerPreferences preferences;
+	private weak GStreamerSoundHandler sound_handler;
+	
+	private string? previous_wind_sound;
+	private string? previous_ring_sound;
+	private string? previous_tick_sound;
+	
+	private Gtk.Grid get_subdialog () {
+		if (this._subdialog == null) 
+		{	this._subdialog = 
+				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Grid ;
+		}
+		return this._subdialog;
+	}
+	private Gtk.FileChooserButton get_wind_sound_chooser () {
+		if (this._wind_sound_chooser == null)
+		{
+			this._wind_sound_chooser = 
+				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-wind-sound-chooser") as Gtk.FileChooserButton ;
+		}
+		return this._wind_sound_chooser;
+	}
+	private Gtk.FileChooserButton get_ring_sound_chooser () {
+		if (this._ring_sound_chooser == null)
+		{
+			this._ring_sound_chooser = 
+				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-ring-sound-chooser") as Gtk.FileChooserButton ;
+		}
+		return this._ring_sound_chooser;
+	}
+	private Gtk.FileChooserButton get_tick_sound_chooser () {
+		if (this._tick_sound_chooser == null)
+		{
+			this._tick_sound_chooser = 
+				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-tick-sound-chooser") as Gtk.FileChooserButton ;
+		}
+		return this._tick_sound_chooser;
+	}
+
+	public VisualTimerPreferencesDialog (GStreamerSoundHandler sound_handler) {
+		this.sound_handler = sound_handler;
+		this.preferences = this.sound_handler.preferences;
+	}
+	public override void instantiate (Gtk.Bin container) {
+		container.child = get_subdialog() ;
+	}
+	public override void show () {
+		this.get_wind_sound_chooser().set_uri(this.previous_wind_sound = this.preferences.wind_sound) ;
+		this.get_ring_sound_chooser().set_uri(this.previous_ring_sound = this.preferences.ringing_sound) ;
+		
+		get_subdialog().show ();
+	}
+	public override void hide () {
+		if (this._subdialog != null) {
+			this._subdialog.destroy();
+		}
+		this._subdialog          = null;
+		this._opacity_adjustment = null;
+		this._size_adjustment    = null;
+		this.ui.app.get_builder().add_objects_from_file (this.ui.app.UI_FILE, 
+			{"visual-timer-preferences-subdialog",
+			 "visual-timer-preferences-opacity-adjustment",
+			 "visual-timer-preferences-size-adjustment",null});
+	}
+	public override void try_commit () {;}
+	public override void try_uncommit () {
+		this.preferences.opacity = this.previous_opacity;
+		this.preferences.size    = this.previous_size;
+	}
+
+}
+
 public class GStreamerEvent : SoundEvent {
 	private weak Gst.Element playbin;
 	
@@ -1789,8 +1873,6 @@ public class GStreamerEvent : SoundEvent {
 	public override void cancel () {
 		this.playbin.set_state(Gst.State.NULL);
 	} 
-}
-public abstract class SoundLoop : SoundEvent {
 }
 public class GStreamerLoop : SoundLoop {
 	private bool is_looping;
