@@ -83,7 +83,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="halign">start</property>
-        <property name="label" translatable="yes">Background clock-tick</property>
+        <property name="label" translatable="yes">Background tick</property>
       </object>
       <packing>
         <property name="left_attach">0</property>

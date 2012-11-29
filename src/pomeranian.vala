@@ -1678,18 +1678,15 @@ public class CanberraEvent :  SoundEvent {
 }
 
 public class GStreamerSoundHandler : SoundHandler {
-	private unowned App app;
-	private string? ringing_sound;
-	private string? wind_sound;
-	private string? ticking_sound;
+	public unowned App app;
+	public unowned GStreamerSoundHandlerPreferences preferences;
 	private int  index = 0;
 	
 	public GStreamerSoundHandler (App app,GStreamerSoundHandlerPreferences preferences) {
 		this.app = app;
 		// This needs to be moved to preferences.
-		this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
-		this.wind_sound    = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
-		this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+		this.preferences = preferences;
+		this.preference_dialog = new GStreamerSoundHandlerPreferencesDialog (this);
 	}
 	public static SoundHandler FACTORY_FUNC (App app, PreferenceEnabled? preferences)  {
 		var that = new GStreamerSoundHandler (app,preferences as GStreamerSoundHandlerPreferences);
@@ -1698,11 +1695,11 @@ public class GStreamerSoundHandler : SoundHandler {
 	private string? parse_soundbite (SoundBite id) {
 		switch (id) {
 			case SoundBite.RING:
-				return this.ringing_sound;
+				return this.preferences.ringing_sound;
 			case SoundBite.WIND:
-				return this.wind_sound;
+				return this.preferences.wind_sound;
 			case SoundBite.TICK_TOCK:
-				return this.ticking_sound;
+				return this.preferences.ticking_sound;
 			default:
 				return null;
 		}
@@ -1793,7 +1790,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 	private Gtk.FileChooserButton _tick_sound_chooser;
 	
 	private GStreamerSoundHandlerPreferences preferences;
-	private weak GStreamerSoundHandler sound_handler;
+	private unowned GStreamerSoundHandler sound_handler;
 	
 	private string? previous_wind_sound;
 	private string? previous_ring_sound;
@@ -1802,7 +1799,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 	private Gtk.Grid get_subdialog () {
 		if (this._subdialog == null) 
 		{	this._subdialog = 
-				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Grid ;
+				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Grid ;
 		}
 		return this._subdialog;
 	}
@@ -1810,7 +1807,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		if (this._wind_sound_chooser == null)
 		{
 			this._wind_sound_chooser = 
-				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-wind-sound-chooser") as Gtk.FileChooserButton ;
+				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-wind-sound-chooser") as Gtk.FileChooserButton ;
 		}
 		return this._wind_sound_chooser;
 	}
@@ -1818,7 +1815,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		if (this._ring_sound_chooser == null)
 		{
 			this._ring_sound_chooser = 
-				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-ring-sound-chooser") as Gtk.FileChooserButton ;
+				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-ring-sound-chooser") as Gtk.FileChooserButton ;
 		}
 		return this._ring_sound_chooser;
 	}
@@ -1826,22 +1823,22 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		if (this._tick_sound_chooser == null)
 		{
 			this._tick_sound_chooser = 
-				this.ui.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-tick-sound-chooser") as Gtk.FileChooserButton ;
+				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-tick-sound-chooser") as Gtk.FileChooserButton ;
 		}
 		return this._tick_sound_chooser;
 	}
 
-	public VisualTimerPreferencesDialog (GStreamerSoundHandler sound_handler) {
+	public GStreamerSoundHandlerPreferencesDialog (GStreamerSoundHandler sound_handler) {
 		this.sound_handler = sound_handler;
 		this.preferences = this.sound_handler.preferences;
 	}
 	public override void instantiate (Gtk.Bin container) {
 		container.child = get_subdialog() ;
-	}
-	public override void show () {
 		this.get_wind_sound_chooser().set_uri(this.previous_wind_sound = this.preferences.wind_sound) ;
 		this.get_ring_sound_chooser().set_uri(this.previous_ring_sound = this.preferences.ringing_sound) ;
-		
+		this.get_tick_sound_chooser().set_uri(this.previous_tick_sound = this.preferences.ticking_sound) ;
+	}
+	public override void show () {
 		get_subdialog().show ();
 	}
 	public override void hide () {
@@ -1849,19 +1846,20 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 			this._subdialog.destroy();
 		}
 		this._subdialog          = null;
-		this._opacity_adjustment = null;
-		this._size_adjustment    = null;
-		this.ui.app.get_builder().add_objects_from_file (this.ui.app.UI_FILE, 
+		this._wind_sound_chooser =
+		this._tick_sound_chooser = 
+		this._ring_sound_chooser = null;
+		this.sound_handler.app.get_builder().add_objects_from_file (this.sound_handler.app.UI_FILE, 
 			{"visual-timer-preferences-subdialog",
 			 "visual-timer-preferences-opacity-adjustment",
 			 "visual-timer-preferences-size-adjustment",null});
 	}
 	public override void try_commit () {;}
 	public override void try_uncommit () {
-		this.preferences.opacity = this.previous_opacity;
-		this.preferences.size    = this.previous_size;
+		this.preferences.wind_sound    = this.previous_wind_sound;
+		this.preferences.ticking_sound = this.previous_tick_sound;
+		this.preferences.ringing_sound = this.previous_wind_sound;
 	}
-
 }
 
 public class GStreamerEvent : SoundEvent {
