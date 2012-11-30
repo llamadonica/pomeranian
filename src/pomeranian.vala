@@ -754,6 +754,8 @@ public class GtkTimer : TimerUI {
 		if (this._gtk_timer_dialog == null) {
 			this._gtk_timer_dialog = 
 				this.app.get_builder().get_object("gtk-timer-dialog") as Gtk.Dialog ;
+			this._gtk_timer_dialog.set_icon_from_file (
+				Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null));
 			/*
 			 * Set-up the button.
 			 */
@@ -1047,6 +1049,8 @@ public class VisualTimer : TimerUI {
 			this._pom_gtk_window = 
 				this.app.get_builder().get_object("pom-gtk-window") as Gtk.Window ;
 			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
+			this._pom_gtk_window.set_icon_from_file (
+				Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null));
 			
 			if (this.preferences.is_positioned) {
 				this._pom_gtk_window.move(this.preferences.pos_x,this.preferences.pos_y);

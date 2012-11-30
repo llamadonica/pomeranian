@@ -1,4 +1,5 @@
 #!/usr/bin/env python
 
 def build(bld):
+   bld.install_files('${PKGDATADIR}', 'pomeranian.png')
    bld.recurse(['sounds','ani','ui'])
