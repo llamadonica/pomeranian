@@ -407,7 +407,7 @@ public class App : GLib.Object {
 	public const string PROGRAM_NAME = "Pomeranian";
 	public const string VERSION = Config.VERSION;
 	public       string UI_FILE ;
-	private SoundLoop?  sound_loop;
+	public SoundLoop?  sound_loop;
 	
 	public void debug(string format, ...) {
 		if (this.DEBUG_STATE) {
@@ -591,10 +591,14 @@ public class App : GLib.Object {
 			});
 		get_ui().cancel.connect(() => {
 				this.sound_loop.cancel ();
+				this.sound_loop = null;
 			});
 		get_ui().wind.connect ((_minutes,_seconds,widget) =>
 			{
 				get_sound_handler().play (SoundBite.WIND, widget);
+				if (this.sound_loop != null) {
+					this.sound_loop.cancel ();
+				}
 				this.sound_loop = get_sound_handler().loop(SoundBite.TICK_TOCK, null);
 			});
 	}
@@ -1404,15 +1408,20 @@ public class VisualTimer : TimerUI {
 			});
 		this.wind_up_handler.set_priority (10);
 		this.wind_up_handler.attach (null);
+		this.get_timer_dialog_stop().sensitive = true;
 	}
 	public void do_cancel () {
 		this.get_pom_gtk_surface().queue_draw();
+		this.get_timer_dialog_stop().sensitive = false;
+		this.get_timer_dialog_restart().label = "Start Pomodoro";
 	}
 	public void do_ring () {
 		this.current_phase += 1;
 		if (this.current_phase > Phase.BREAK_4)
 			this.current_phase = Phase.POMODORO_1;
 		this.get_pom_gtk_surface().queue_draw();
+		this.get_timer_dialog_stop().sensitive = false;
+		this.get_timer_dialog_restart().label = "Start Pomodoro";
 	}
 	
 	public void run_button () {
@@ -1687,6 +1696,12 @@ public class GStreamerSoundHandler : SoundHandler {
 		// This needs to be moved to preferences.
 		this.preferences = preferences;
 		this.preference_dialog = new GStreamerSoundHandlerPreferencesDialog (this);
+		this.preferences.notify["ticking-sound"].connect(() => {
+				if (this.app.sound_loop != null) {
+					this.app.sound_loop.cancel ();
+				}
+				this.app.sound_loop = this.loop(SoundBite.TICK_TOCK, null);
+			});
 	}
 	public static SoundHandler FACTORY_FUNC (App app, PreferenceEnabled? preferences)  {
 		var that = new GStreamerSoundHandler (app,preferences as GStreamerSoundHandlerPreferences);
@@ -1800,6 +1815,15 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		if (this._subdialog == null) 
 		{	this._subdialog = 
 				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Grid ;
+			this.get_wind_sound_chooser().file_set.connect(() => {
+					this.preferences.wind_sound = this.get_wind_sound_chooser().get_uri();
+				});
+			this.get_tick_sound_chooser().file_set.connect(() => {
+					this.preferences.ticking_sound = this.get_tick_sound_chooser().get_uri();
+				});
+			this.get_ring_sound_chooser().file_set.connect(() => {
+					this.preferences.ringing_sound = this.get_ring_sound_chooser().get_uri();
+				});
 		}
 		return this._subdialog;
 	}
