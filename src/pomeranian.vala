@@ -34,11 +34,16 @@ public class Main : GLib.Object {
 	static int main (string[] args) {	
 		Gtk.init(ref args);
 		Gst.init(ref args);
-		
-		var app = new Pomeranian.App();
-		
-		Gtk.main() ;
-		return 0;
+				
+		try {
+			var app = new Pomeranian.App();
+			Gtk.main() ;
+			app.touch();
+			return 0;
+		}
+		catch (Error e) {
+			error ("Could not start: %s", e.message);
+		}
 	}
 }
 
@@ -69,7 +74,7 @@ public PreferenceEnabled? NO_PREFERENCES () {
 	return null;
 }
 public abstract class PreferenceEnabled : GLib.Object {
-	public abstract void configure (KeyFile key_file) ;
+	public abstract void configure (KeyFile key_file) throws Error, ConvertError ;
 	public abstract void configure_from_default () ;
 	public abstract void commit    (KeyFile key_file) ;
 	
@@ -212,8 +217,8 @@ public class Preferences : GLib.Object {
 
 public abstract class PreferenceDialogEnabled : GLib.Object {
 	public abstract void instantiate (Gtk.Bin container);
-	public abstract void show ();
-	public abstract void hide ();
+	public abstract void show () throws Error ;
+	public abstract void hide () throws Error ;
 	public abstract void try_commit ();
 	public abstract void try_uncommit ();
 }
@@ -227,13 +232,13 @@ public class PreferenceDialog : GLib.Object {
 	private string previous_ui_view;
 	
 	private Gtk.Dialog _options_dialog ;
-	private Gtk.Expander get_ui_expander () {
+	private Gtk.Expander get_ui_expander () throws Error {
 		if (this._ui_expander == null) {
 			this._ui_expander = this.app.get_builder().get_object ("preferences-dialog-ui-expander") as Gtk.Expander;
 		}
 		return this._ui_expander;
 	}
-	private Gtk.Expander get_audio_expander () {
+	private Gtk.Expander get_audio_expander () throws Error {
 		if (this._audio_expander == null) {
 			this._audio_expander = this.app.get_builder().get_object ("preferences-dialog-audio-expander") as Gtk.Expander;
 		}
@@ -243,7 +248,6 @@ public class PreferenceDialog : GLib.Object {
 	private Gtk.Dialog get_options_dialog () throws Error {
 		if (this._options_dialog == null) {
 			int l_break_time, s_break_time, pomodoro_time;
-			string ui_view;
 		
 			this._options_dialog = this.app.get_builder().get_object ("preferences-dialog") as Gtk.Dialog;
 		
@@ -387,14 +391,14 @@ public class PreferenceDialog : GLib.Object {
 		}
 		return this._options_dialog ;
 	}
-	public int run () {
+	public int run ()  throws Error {
 		this.get_options_dialog() ; // This should be done a little better.
 		if (this.ui_sub_dialog != null) {
 			this.ui_sub_dialog.show ();
 		}
 		return this.get_options_dialog().run ();
 	}
-	public void hide () {
+	public void hide () throws Error {
 		this.get_options_dialog().hide();
 	}
 	public PreferenceDialog (App app) {
@@ -425,12 +429,12 @@ public class App : GLib.Object {
 	private Gtk.AboutDialog _about_dialog;
 	private Preferences _app_config;
 	private Gtk.Builder _builder; // The hidden nullable attribute
-	private Gtk.Dialog _options_dialog;
 	private SoundHandlerFactory _sound_handler_factory;
 	private SoundHandler _sound_handler;
 	private PreferenceDialog _preference_dialog;
 	//}}}
 	
+	public void touch () {;}
 	private PreferenceDialog get_preference_dialog() {
 		if (this._preference_dialog == null)
 			this._preference_dialog = new PreferenceDialog (this);
@@ -451,10 +455,10 @@ public class App : GLib.Object {
 		}
 		return this._ui_factory;
 	}
-	private Gtk.StatusIcon get_status_icon () {
+	private Gtk.StatusIcon get_status_icon () throws Error {
 		if (this._status_icon == null)
 		{
-			var ui = this.get_ui() ;
+			this.get_ui() ; 
 			this._status_icon = new Gtk.StatusIcon.from_stock( Gtk.Stock.YES );
 			this._status_icon.title = this.PROGRAM_NAME;
 			this._status_icon.popup_menu.connect((button_id, timestamp) => {
@@ -572,9 +576,7 @@ public class App : GLib.Object {
 		}
 		return this._sound_handler;
 	}
-	public App () {
-	}
-	construct {
+	public App () throws Error {
 		this.UI_FILE = Path.build_filename (Config.UIDIR,Config.PACKAGE_NAME + ".ui",null);
 		this.debug (this.UI_FILE);
 		/* Create the PomeranianConfig
@@ -601,6 +603,7 @@ public class App : GLib.Object {
 				}
 				this.sound_loop = get_sound_handler().loop(SoundBite.TICK_TOCK, null);
 			});
+	
 	}
 }
 
@@ -730,7 +733,6 @@ public class GtkTimer : TimerUI {
 	private CurrentButtonAct next_action = CurrentButtonAct.START_POMODORO;	
 	
 	//{{{ Hidden internal backing variables, accessed through their gettters
-	private TimeoutSource _clock_tick ;
 	private Gtk.Label _gtk_time_label ;
 	private Gtk.Dialog _gtk_timer_dialog ;
 	private Gtk.Button _gtk_timer_dialog_button;
@@ -750,10 +752,12 @@ public class GtkTimer : TimerUI {
 		}
 		return this._gtk_time_label ;
 	}
-	public Gtk.Dialog get_gtk_timer_dialog () {
+	public Gtk.Dialog get_gtk_timer_dialog () throws Error {
 		if (this._gtk_timer_dialog == null) {
 			this._gtk_timer_dialog = 
 				this.app.get_builder().get_object("gtk-timer-dialog") as Gtk.Dialog ;
+			this._gtk_timer_dialog.set_icon_from_file (
+				Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null));
 			/*
 			 * Set-up the button.
 			 */
@@ -783,14 +787,14 @@ public class GtkTimer : TimerUI {
 		}
 		return this._gtk_timer_dialog ;
 	}
-	private Gtk.Button get_gtk_timer_dialog_button() {
+	private Gtk.Button get_gtk_timer_dialog_button() throws Error {
 		if (this._gtk_timer_dialog_button == null) {
 			this._gtk_timer_dialog_button = 
 				this.app.get_builder().get_object("gtk-timer-dialog-button") as Gtk.Button;
 		}
 		return this._gtk_timer_dialog_button ;
 	}
-	private Gtk.EventBox get_gtk_timer_dialog_pulldown_arrow () { //gtk-timer-dialog-pulldown-arrow
+	private Gtk.EventBox get_gtk_timer_dialog_pulldown_arrow () throws Error { //gtk-timer-dialog-pulldown-arrow
 		if (this._gtk_timer_dialog_pulldown_arrow == null) {
 			this._gtk_timer_dialog_pulldown_arrow = 
 				this.app.get_builder().get_object("gtk-timer-dialog-pulldown-arrow") as Gtk.EventBox ;
@@ -813,7 +817,7 @@ public class GtkTimer : TimerUI {
 		}
 		return this._gtk_timer_dialog_pulldown_arrow ;
 	} 
-	private Gtk.Menu get_timer_dialog_menu() {
+	private Gtk.Menu get_timer_dialog_menu() throws Error {
 		if (this._timer_dialog_menu == null) {
 			this._timer_dialog_menu = 
 				this.app.get_builder().get_object("timer-dialog-menu") as Gtk.Menu ;
@@ -845,7 +849,7 @@ public class GtkTimer : TimerUI {
 		}
 		return this._timer_dialog_menu;
 	}
-	private Gtk.MenuItem get_timer_dialog_restart() {
+	private Gtk.MenuItem get_timer_dialog_restart() throws Error {
 		if (this._timer_dialog_restart == null) {
 			this._timer_dialog_restart = 
 				this.app.get_builder().get_object("timer-dialog-restart") as Gtk.MenuItem ;
@@ -853,7 +857,7 @@ public class GtkTimer : TimerUI {
 		}
 		return this._timer_dialog_restart;
 	}
-	private Gtk.MenuItem get_timer_dialog_stop() {
+	private Gtk.MenuItem get_timer_dialog_stop() throws Error {
 		if (this._timer_dialog_stop == null) {
 			this._timer_dialog_stop = 
 				this.app.get_builder().get_object("timer-dialog-stop") as Gtk.MenuItem ;
@@ -861,7 +865,7 @@ public class GtkTimer : TimerUI {
 		}
 		return this._timer_dialog_stop;
 	}
-	private Gtk.MenuItem get_timer_dialog_short_break () {
+	private Gtk.MenuItem get_timer_dialog_short_break () throws Error {
 		if (this._timer_dialog_short_break == null) {
 			this._timer_dialog_short_break = 
 				this.app.get_builder().get_object("timer-dialog-short-break") as Gtk.MenuItem ;
@@ -869,7 +873,7 @@ public class GtkTimer : TimerUI {
 		}
 		return this._timer_dialog_short_break;
 	}
-	private Gtk.MenuItem get_timer_dialog_long_break () {
+	private Gtk.MenuItem get_timer_dialog_long_break () throws Error {
 		if (this._timer_dialog_long_break == null) {
 			this._timer_dialog_long_break = 
 				this.app.get_builder().get_object("timer-dialog-long-break") as Gtk.MenuItem ;
@@ -877,7 +881,7 @@ public class GtkTimer : TimerUI {
 		}
 		return this._timer_dialog_long_break;
 	}
-	private Gtk.MenuItem get_timer_dialog_quit () {
+	private Gtk.MenuItem get_timer_dialog_quit () throws Error {
 		if (this._timer_dialog_quit == null) {
 			this._timer_dialog_quit = 
 				this.app.get_builder().get_object("timer-dialog-quit") as Gtk.MenuItem ;
@@ -1030,8 +1034,6 @@ public class VisualTimer : TimerUI {
 	private double scale_factor;
 	private bool is_winding_up = false;
 	
-	private bool  mouse_is_down = false;
-	
 	private Phase current_phase;
 	
 	const string FONT_DESCRIPTION = "Sans Bold 20";
@@ -1047,6 +1049,8 @@ public class VisualTimer : TimerUI {
 			this._pom_gtk_window = 
 				this.app.get_builder().get_object("pom-gtk-window") as Gtk.Window ;
 			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
+			this._pom_gtk_window.set_icon_from_file (
+				Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null));
 			
 			if (this.preferences.is_positioned) {
 				this._pom_gtk_window.move(this.preferences.pos_x,this.preferences.pos_y);
@@ -1740,7 +1744,6 @@ public class GStreamerSoundHandler : SoundHandler {
 		return new GStreamerEvent (playbin) as SoundEvent;
 	}
 	public override SoundLoop? loop (SoundBite sound, Gtk.Widget? _) {
-		string uri;
 		Gst.Pipeline? playbin  = this.play_or_loop (sound);
 		if (playbin == null) return null;
 		
@@ -1755,7 +1758,7 @@ public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
 	public  string wind_sound      {get;set;}
 	public  string ticking_sound   {get;set;}
 	
-	public override void configure (KeyFile key_file) {
+	public override void configure (KeyFile key_file) throws Error, ConvertError {
 		try {
 			this.ringing_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ringing-sound");
 		}
@@ -1811,7 +1814,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 	private string? previous_ring_sound;
 	private string? previous_tick_sound;
 	
-	private Gtk.Grid get_subdialog () {
+	private Gtk.Grid get_subdialog ()  throws Error {
 		if (this._subdialog == null) 
 		{	this._subdialog = 
 				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Grid ;
@@ -1827,7 +1830,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		}
 		return this._subdialog;
 	}
-	private Gtk.FileChooserButton get_wind_sound_chooser () {
+	private Gtk.FileChooserButton get_wind_sound_chooser ()  throws Error {
 		if (this._wind_sound_chooser == null)
 		{
 			this._wind_sound_chooser = 
@@ -1835,7 +1838,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		}
 		return this._wind_sound_chooser;
 	}
-	private Gtk.FileChooserButton get_ring_sound_chooser () {
+	private Gtk.FileChooserButton get_ring_sound_chooser ()  throws Error {
 		if (this._ring_sound_chooser == null)
 		{
 			this._ring_sound_chooser = 
@@ -1843,7 +1846,7 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		}
 		return this._ring_sound_chooser;
 	}
-	private Gtk.FileChooserButton get_tick_sound_chooser () {
+	private Gtk.FileChooserButton get_tick_sound_chooser ()  throws Error {
 		if (this._tick_sound_chooser == null)
 		{
 			this._tick_sound_chooser = 
@@ -1862,10 +1865,10 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		this.get_ring_sound_chooser().set_uri(this.previous_ring_sound = this.preferences.ringing_sound) ;
 		this.get_tick_sound_chooser().set_uri(this.previous_tick_sound = this.preferences.ticking_sound) ;
 	}
-	public override void show () {
+	public override void show () throws Error {
 		get_subdialog().show ();
 	}
-	public override void hide () {
+	public override void hide () throws Error {
 		if (this._subdialog != null) {
 			this._subdialog.destroy();
 		}
@@ -1898,8 +1901,6 @@ public class GStreamerEvent : SoundEvent {
 }
 public class GStreamerLoop : SoundLoop {
 	private bool is_looping;
-	private SoundBite sound;
-	private string uri;
 	private Gst.Pipeline playbin;
 	
 	
@@ -1915,7 +1916,6 @@ public class GStreamerLoop : SoundLoop {
 	}
 	public GStreamerLoop (Gst.Pipeline playbin) {
 		this.is_looping = true;
-		this.uri = uri;
 		this.playbin = playbin;
 		var bus = playbin.get_bus ();
 		bus.add_watch (this.bus_watcher);
