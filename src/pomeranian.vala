@@ -436,6 +436,7 @@ public class PreferenceDialog : GLib.Object {
 }
 
 public class App : GLib.Object {
+	const string FONT_DESCRIPTION = "Sans Bold";
 	public const bool   DEBUG_STATE  = true;
 	public const string PROGRAM_NAME = "Pomeranian";
 	public const string VERSION = Config.VERSION;
@@ -552,7 +553,29 @@ public class App : GLib.Object {
 		}
 		cr.set_line_width (1);
 		cr.stroke ();
+		cr.set_source_rgba (1,1,1,0.8);
+		var layout  = Pango.cairo_create_layout (cr);
+		var message = ("%d").printf(this.get_ui().minutes);
 		
+		var font_description = Pango.FontDescription.from_string (this.FONT_DESCRIPTION);
+		font_description.set_size(size-4);
+		double scale_by = 1024;
+			
+		layout.set_width((int) scale_by*(size-4));
+		layout.set_alignment (Pango.Alignment.CENTER);
+		layout.set_font_description(font_description);
+		layout.set_text(message,-1);
+		Pango.cairo_update_layout (cr, layout);
+
+		int width, height;
+		layout.get_size (out width, out height);
+					
+		cr.move_to (
+			size/2 - ((double) width)/ scale_by / 2, 
+			size/2 - ((double) height)/ scale_by / 2);
+		cr.set_operator(Cairo.Operator.OVER);
+		Pango.cairo_show_layout (cr,layout);
+				
 		surface.mark_dirty ();
 		
 		var pixmap = Gdk.pixbuf_get_from_surface (surface,0,0,size,size);
