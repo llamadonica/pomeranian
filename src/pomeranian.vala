@@ -1,6 +1,6 @@
 /* -*- Mode: Vala; indent-tabs-mode: t; c-basic-offset: 2; tab-width: 2 -*- */
 /*
- * rhythmbox_remote.vala
+ * pomeranian.vala
  * Copyright (C) 2012 Adam and Monica Stark <adstark1982@yahoo.com>
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  *    contributor may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  * 
- * dbus-introspect IS PROVIDED BY Adam and Monica Stark ``AS IS'' AND ANY EXPRESS
+ * pomeranian IS PROVIDED BY Adam and Monica Stark ``AS IS'' AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL Adam and Monica Stark OR ANY OTHER CONTRIBUTORS
@@ -32,6 +32,12 @@ using GLib;
 
 public class Main : GLib.Object {
 	static int main (string[] args) {
+		Pomeranian.Config.use();
+		
+		Intl.setlocale( LocaleCategory.ALL, "" );
+		Intl.bindtextdomain( Pomeranian.Config.GETTEXT_PACKAGE , "/usr/share/locale" );
+		Intl.textdomain( Pomeranian.Config.GETTEXT_PACKAGE );
+		
 		Gtk.init(ref args);
 		Gst.init(ref args);
 		var app = new Pomeranian.App();
@@ -44,64 +50,6 @@ public class Main : GLib.Object {
 
 namespace Pomeranian {
 
-public class Builder : Object {
-	public Gtk.Builder builder {get; construct;}
-	public unowned App app     {get; construct;}
-	public Builder (Gtk.Builder builder, App app) {
-		Object (builder:builder, app:app);
-	}
-	public unowned Object get_object (string name) {
-		return this.builder.get_object(name);
-	}
-	public uint add_from_file (string filename) {
-		try {
-			return this.builder.add_from_file (filename);
-		} catch (Error e) {
-			this.app.error ("Could not load resource %s: %s", filename, e.message);
-			return 0;
-		}
-	}
-	public uint add_objects_from_file (string filename, string[] object_ids) {
-		try {
-			return this.builder.add_objects_from_file (filename, object_ids) ;
-		} catch (Error e) {
-			this.app.error ("Could not load resource %s: %s", filename, e.message);
-			return 0;
-		}
-	}
-}
-
-public class DisconnectionManager : Object {
-	public weak Object object     {get; set;}
-	public      ulong  handler_id {get; set;}
-	public DisconnectionManager () {;}
-	public new void disconnect () {
-		if (object==null) return;
-		
-		object.disconnect (handler_id);
-		object = null;
-		handler_id = 0;
-	}
-}
-
-/* The class for items that can be configured. An object is instantiated,
- * then registered with the configuration, where it is called before 
- * each commit and after the configure step.
- */
-
-[CCode (has_target = false)]
-public delegate PreferenceEnabled? PreferenceFactoryFunc () ;
-
-public PreferenceEnabled? NO_PREFERENCES () {
-	return null;
-}
-public abstract class PreferenceEnabled : GLib.Object {
-	public abstract void configure (KeyFile key_file) ;
-	public abstract void configure_from_default () ;
-	public abstract void commit    (KeyFile key_file) ;
-	
-	public abstract signal void has_changed ();
-}
 public class Preferences : GLib.Object {
 	public int pomodoro_time {get; set;}
 	public int s_break_time  {get; set;}
@@ -131,10 +79,10 @@ public class Preferences : GLib.Object {
 		if (!should_commit) return;
 		
 		var key_file = new KeyFile ();
-		key_file.set_integer ("settings","pomodoro_time",this.pomodoro_time);
-		key_file.set_integer ("settings","s_break_time",this.s_break_time);
-		key_file.set_integer ("settings","l_break_time",this.l_break_time);
-		key_file.set_string  ("settings", "ui_view",this.ui_view);
+		key_file.set_integer ("Preferences","pomodoro-time",this.pomodoro_time);
+		key_file.set_integer ("Preferences","s-break-time",this.s_break_time);
+		key_file.set_integer ("Preferences","l-break-time",this.l_break_time);
+		key_file.set_string  ("Preferences", "ui-view",this.ui_view);
 		
 		foreach (var configurator in this.configurators)
 			configurator.commit (key_file);
@@ -192,7 +140,7 @@ public class Preferences : GLib.Object {
 		file_exists = 1;
 		//pomodoro time
 		try {
-			this.pomodoro_time = key_file.get_integer ("settings","pomodoro_time");
+			this.pomodoro_time = key_file.get_integer ("Preferences","pomodoro-time");
 		}
 		catch (KeyFileError err) {
 			this.pomodoro_time = 25; this.should_commit = true;
@@ -200,7 +148,7 @@ public class Preferences : GLib.Object {
 		
 		//s break time
 		try {
-			this.s_break_time = key_file.get_integer ("settings","s_break_time");
+			this.s_break_time = key_file.get_integer ("Preferences","s-break-time");
 		}
 		catch (KeyFileError err) {
 			this.s_break_time = 5; this.should_commit = true;
@@ -208,7 +156,7 @@ public class Preferences : GLib.Object {
 		
 		//l break time
 		try {
-			this.l_break_time = key_file.get_integer ("settings","l_break_time");
+			this.l_break_time = key_file.get_integer ("Preferences","l-break-time");
 		}
 		catch (KeyFileError err) {
 			this.l_break_time = 15; this.should_commit = true;
@@ -216,7 +164,7 @@ public class Preferences : GLib.Object {
 		
 		//timer_ui
 		try {
-			this.ui_view = key_file.get_string ("settings","ui_view");
+			this.ui_view = key_file.get_string ("Preferences", "ui-view");
 		}
 		catch (KeyFileError err) {
 			this.ui_view  = "Tomato Interface"; this.should_commit = true;
@@ -227,7 +175,6 @@ public class Preferences : GLib.Object {
 		}
 		
 		this.notify.connect(() => { 
-			stderr.printf ("Preferences says \"should_commit=true\".\n");
 			this.should_commit = true; });
 	}
 	public void register (PreferenceEnabled configurator) {
@@ -236,6 +183,64 @@ public class Preferences : GLib.Object {
 			{this.should_commit = true;});
 	}
 
+}
+public class Builder : Object {
+	public Gtk.Builder builder {get; construct;}
+	public unowned App app     {get; construct;}
+	public Builder (Gtk.Builder builder, App app) {
+		Object (builder:builder, app:app);
+	}
+	public unowned Object get_object (string name) {
+		return this.builder.get_object(name);
+	}
+	public uint add_from_file (string filename) {
+		try {
+			return this.builder.add_from_file (filename);
+		} catch (Error e) {
+			this.app.error ("%s %s: %s", _("Could not load resource file"), filename, e.message);
+			return 0;
+		}
+	}
+	public uint add_objects_from_file (string filename, string[] object_ids) {
+		try {
+			return this.builder.add_objects_from_file (filename, object_ids) ;
+		} catch (Error e) {
+			this.app.error ("%s %s: %s", _("Could not load resource file"), filename, e.message);
+			return 0;
+		}
+	}
+}
+
+public class DisconnectionManager : Object {
+	public weak Object object     {get; set;}
+	public      ulong  handler_id {get; set;}
+	public DisconnectionManager () {;}
+	public new void disconnect () {
+		if (object==null) return;
+		
+		object.disconnect (handler_id);
+		object = null;
+		handler_id = 0;
+	}
+}
+
+/* The class for items that can be configured. An object is instantiated,
+ * then registered with the configuration, where it is called before 
+ * each commit and after the configure step.
+ */
+
+[CCode (has_target = false)]
+public delegate PreferenceEnabled? PreferenceFactoryFunc () ;
+
+public PreferenceEnabled? NO_PREFERENCES () {
+	return null;
+}
+public abstract class PreferenceEnabled : GLib.Object {
+	public abstract void configure (KeyFile key_file) ;
+	public abstract void configure_from_default () ;
+	public abstract void commit    (KeyFile key_file) ;
+	
+	public abstract signal void has_changed ();
 }
 
 public abstract class PreferenceDialogEnabled : GLib.Object {
@@ -327,7 +332,7 @@ public class PreferenceDialog : GLib.Object {
 			var key_iterator = this.app.get_ui_factory().instantiaters.map_iterator();
 			if (key_iterator.first()) {
 				do {
-					ui_menu.append(key_iterator.get_key(), key_iterator.get_key());
+					ui_menu.append(key_iterator.get_key(), _(key_iterator.get_key()));
 					if (this.previous_ui_view == key_iterator.get_key())
 						valid_view = true;
 				} while (key_iterator.next());
@@ -482,8 +487,8 @@ public class App : GLib.Object {
 		if (this._ui_factory == null) {
 			this._ui_factory = new TimerUIFactory (this.get_app_config());
 			
-			this._ui_factory.register (_("Gtk Interface"), GtkTimer.FACTORY_FUNC, NO_PREFERENCES);
-			this._ui_factory.register (_("Tomato Interface"), VisualTimer.FACTORY_FUNC, VisualTimerPreferences.FACTORY_FUNC);
+			this._ui_factory.register ("Gtk Interface", GtkTimer.FACTORY_FUNC, NO_PREFERENCES);
+			this._ui_factory.register ("Tomato Interface", VisualTimer.FACTORY_FUNC, VisualTimerPreferences.FACTORY_FUNC);
 		}
 		return this._ui_factory;
 	}
@@ -598,14 +603,14 @@ public class App : GLib.Object {
 		if (this._sound_handler_factory == null) {
 			this._sound_handler_factory = new SoundHandlerFactory (this.get_app_config());
 			
-			this._sound_handler_factory.register (_("Canberra"),  CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
-			this._sound_handler_factory.register (_("GStreamer"), GStreamerSoundHandler.FACTORY_FUNC, GStreamerSoundHandlerPreferences.FACTORY_FUNC);
+			this._sound_handler_factory.register ("Canberra",  CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
+			this._sound_handler_factory.register ("GStreamer", GStreamerSoundHandler.FACTORY_FUNC, GStreamerSoundHandlerPreferences.FACTORY_FUNC);
 		}
 		return this._sound_handler_factory;
 	}
 	public SoundHandler get_sound_handler () {
 		if (this._sound_handler == null) {
-			this._sound_handler = this.get_sound_handler_factory().build(_("GStreamer"), this);
+			this._sound_handler = this.get_sound_handler_factory().build("GStreamer", this);
 		}
 		return this._sound_handler;
 	}
@@ -861,7 +866,7 @@ public class GtkTimer : TimerUI {
 			this.get_timer_dialog_restart().activate.connect(() =>
 				{
 					this.wind(this.app.get_app_config().pomodoro_time,0,get_timer_dialog_menu());
-					this.get_timer_dialog_restart().label = "Restart Pomodoro";
+					this.get_timer_dialog_restart().label = _("Restart Pomodoro");
 				});
 			this.get_timer_dialog_stop().activate.connect(() =>
 				{
@@ -871,13 +876,13 @@ public class GtkTimer : TimerUI {
 				{
 					this.phase = 1;
 					this.wind(this.app.get_app_config().s_break_time,0,get_timer_dialog_menu());
-					this.get_timer_dialog_restart().label = "Start Pomodoro";
+					this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				});
 			this.get_timer_dialog_long_break().activate.connect(() =>
 				{
 					this.phase = 7;
 					this.wind(this.app.get_app_config().l_break_time,0,get_timer_dialog_menu());
-					this.get_timer_dialog_restart().label = "Start Pomodoro";
+					this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				});
 			this.get_timer_dialog_quit().activate.connect(() =>
 				{
@@ -932,15 +937,15 @@ public class GtkTimer : TimerUI {
 		switch (this.next_action) {
 			case (CurrentButtonAct.START_POMODORO):
 				this.wind(this.app.get_app_config().pomodoro_time,0,this.get_gtk_timer_dialog_button());
-				this.get_timer_dialog_restart().label = "Restart Pomodoro";
+				this.get_timer_dialog_restart().label = _("Restart Pomodoro");
 				break;
 			case (CurrentButtonAct.START_L_BREAK):
 				this.wind(this.app.get_app_config().l_break_time,0,this.get_gtk_timer_dialog_button());
-				this.get_timer_dialog_restart().label = "Start Pomodoro";
+				this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				break;
 			case (CurrentButtonAct.START_S_BREAK):
 				this.wind(this.app.get_app_config().s_break_time,0,this.get_gtk_timer_dialog_button());
-				this.get_timer_dialog_restart().label = "Start Pomodoro";
+				this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				break;
 			case (CurrentButtonAct.STOP):
 				this.cancel ();
@@ -975,15 +980,15 @@ public class GtkTimer : TimerUI {
 	}
 	public void do_wind (int minutes, int seconds=0,Gtk.Widget? _ignore) {
 		this.next_action = CurrentButtonAct.STOP ;
-		this.get_gtk_timer_dialog_button().label = "Stop";
+		this.get_gtk_timer_dialog_button().label = _("Stop");
 		this.get_timer_dialog_stop().sensitive = true;
 		this.on_clock_tick ();
 	}
 	public void do_ring () {
 		this.get_gtk_timer_dialog().show();
 		
-		this.get_gtk_time_label().label = "Stopped";
-		this.get_timer_dialog_restart().label = "Start Pomodoro";
+		this.get_gtk_time_label().label = _("Stopped");
+		this.get_timer_dialog_restart().label = _("Start Pomodoro");
 		this.get_timer_dialog_stop().sensitive = false;
 		
 		this.phase = (this.phase + 1)%8;
@@ -993,33 +998,33 @@ public class GtkTimer : TimerUI {
 			case 4:
 			case 6:
 				this.next_action = CurrentButtonAct.START_POMODORO ;
-				this.get_gtk_timer_dialog_button().label = "Start Pomodoro";
+				this.get_gtk_timer_dialog_button().label = _("Start Pomodoro");
 				break;
 			case 1:
 				this.next_action = CurrentButtonAct.START_S_BREAK ;
-				this.get_gtk_timer_dialog_button().label = "¹Start Short Break";
+				this.get_gtk_timer_dialog_button().label = _("¹Start Short Break");
 				break;
 			case 3:
 				this.next_action = CurrentButtonAct.START_S_BREAK ;
-				this.get_gtk_timer_dialog_button().label = "²Start Short Break";
+				this.get_gtk_timer_dialog_button().label = _("²Start Short Break");
 				break;
 			case 5:
 				this.next_action = CurrentButtonAct.START_S_BREAK ;
-				this.get_gtk_timer_dialog_button().label = "³Start Short Break";
+				this.get_gtk_timer_dialog_button().label = _("³Start Short Break");
 				break;
 			case 7:
 				this.next_action = CurrentButtonAct.START_L_BREAK ;
-				this.get_gtk_timer_dialog_button().label = "⁴Start Long Break";
+				this.get_gtk_timer_dialog_button().label = _("⁴Start Long Break");
 				break;
 		}
 	}
 	public void do_cancel () {
 		this.phase = 0;
 		this.next_action = CurrentButtonAct.START_POMODORO ;
-		this.get_gtk_time_label().label = "Stopped";
-		this.get_gtk_timer_dialog_button().label = "Start Pomodoro";
+		this.get_gtk_time_label().label = _("Stopped");
+		this.get_gtk_timer_dialog_button().label = _("Start Pomodoro");
 		
-		this.get_timer_dialog_restart().label = "Start Pomodoro";
+		this.get_timer_dialog_restart().label = _("Start Pomodoro");
 		this.get_timer_dialog_stop().sensitive = false;
 	}
 
@@ -1240,7 +1245,7 @@ public class VisualTimer : TimerUI {
 				{
 					this.current_phase = Phase.POMODORO_1;
 					this.wind(this.app.get_app_config().pomodoro_time,0,get_timer_dialog_menu());
-					this.get_timer_dialog_restart().label = "Restart Pomodoro";
+					this.get_timer_dialog_restart().label = _("Restart Pomodoro");
 				});
 			this.get_timer_dialog_stop().activate.connect(() =>
 				{
@@ -1250,13 +1255,13 @@ public class VisualTimer : TimerUI {
 				{
 					this.current_phase = Phase.BREAK_1;
 					this.wind(this.app.get_app_config().s_break_time,0,get_timer_dialog_menu());
-					this.get_timer_dialog_restart().label = "Start Pomodoro";
+					this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				});
 			this.get_timer_dialog_long_break().activate.connect(() =>
 				{
 					this.current_phase = Phase.BREAK_4;
 					this.wind(this.app.get_app_config().l_break_time,0,get_timer_dialog_menu());
-					this.get_timer_dialog_restart().label = "Start Pomodoro";
+					this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				});
 			this.get_timer_dialog_quit().activate.connect(() =>
 				{
@@ -1322,21 +1327,21 @@ public class VisualTimer : TimerUI {
 				case Phase.POMODORO_2:
 				case Phase.POMODORO_3:
 				case Phase.POMODORO_4:
-					message = "Start Pomodoro";
+					message = _("Start Pomodoro");
 					break;
 				case Phase.BREAK_1:
-					message = "¹Start Break";
+					message = _("¹Start Break");
 					break;
 				case Phase.BREAK_2:
-					message = "²Start Break";
+					message = _("²Start Break");
 					break;
 				case Phase.BREAK_3:
-					message = "³Start Break";
+					message = _("³Start Break");
 					break;
 				case Phase.BREAK_4:
-					message = "⁴Start Long Break";
+					message = _("⁴Start Long Break");
 					break;
-				default: error ("Should be unreachable\n");
+				default: error ("%s\n", _("Impossible Phase of timer"));
 			}
 			
 			var font_description = Pango.FontDescription.from_string (this.FONT_DESCRIPTION);
@@ -1458,7 +1463,7 @@ public class VisualTimer : TimerUI {
 	public void do_cancel () {
 		this.get_pom_gtk_surface().queue_draw();
 		this.get_timer_dialog_stop().sensitive = false;
-		this.get_timer_dialog_restart().label = "Start Pomodoro";
+		this.get_timer_dialog_restart().label = _("Start Pomodoro");
 	}
 	public void do_ring () {
 		this.current_phase += 1;
@@ -1466,7 +1471,7 @@ public class VisualTimer : TimerUI {
 			this.current_phase = Phase.POMODORO_1;
 		this.get_pom_gtk_surface().queue_draw();
 		this.get_timer_dialog_stop().sensitive = false;
-		this.get_timer_dialog_restart().label = "Start Pomodoro";
+		this.get_timer_dialog_restart().label = _("Start Pomodoro");
 	}
 	
 	public void run_button () {
@@ -1481,17 +1486,17 @@ public class VisualTimer : TimerUI {
 			case Phase.POMODORO_3:
 			case Phase.POMODORO_4:
 				this.wind(this.app.get_app_config().pomodoro_time,0,this.get_pom_gtk_surface());
-				this.get_timer_dialog_restart().label = "Restart Pomodoro";
+				this.get_timer_dialog_restart().label = _("Restart Pomodoro");
 				break;
 			case Phase.BREAK_1:
 			case Phase.BREAK_2:
 			case Phase.BREAK_3:
 				this.wind(this.app.get_app_config().s_break_time,0,this.get_pom_gtk_surface());
-				this.get_timer_dialog_restart().label = "Start Pomodoro";
+				this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				break;
 			case Phase.BREAK_4:
 				this.wind(this.app.get_app_config().s_break_time,0,this.get_pom_gtk_surface());
-				this.get_timer_dialog_restart().label = "Start Pomodoro";
+				this.get_timer_dialog_restart().label = _("Start Pomodoro");
 				break;
 		}
 	}
@@ -1823,7 +1828,7 @@ public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
 				this.has_changed();
 			}
 		} catch (ConvertError e) {
-			error ("Unexpected error: built-in filename could not be converted to URI: %s", e.message);
+			error ("%s: %s", _("Built-in filename could not be converted to URI"), e.message);
 		}
 	}
 	public override void configure_from_default () {
@@ -1832,7 +1837,7 @@ public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
 			this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
 			this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
 		} catch (ConvertError e) {
-			error ("Unexpected error: built-in filename could not be converted to URI: %s", e.message);
+			error ("%s: %s", _("Built-in filename could not be converted to URI"), e.message);
 		}
 	}
 	public override void commit (KeyFile key_file) {

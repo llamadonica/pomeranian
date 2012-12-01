@@ -1,0 +1,205 @@
+# pomeranian.pot
+# Copyright (C) 2012 Adam and Monica Stark <adstark1982@yahoo.com>
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name ``Adam and Monica Stark'' nor the name of any other
+#    contributor may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+# 
+# pomeranian IS PROVIDED BY Adam and Monica Stark ``AS IS'' AND ANY EXPRESS
+# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL Adam and Monica Stark OR ANY OTHER CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: pomeranian-0.2.0\n"
+"Report-Msgid-Bugs-To: Adam Stark <llamadonica@gmail.com>\n"
+"POT-Creation-Date: 2012-11-30 23:54-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Adam Stark <llamadonica@gmail.com>\n"
+"Language-Team: Adam Stark <llamadonica@gmail.com>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/pomeranian.vala:200
+#: src/pomeranian.vala:208
+msgid "Could not load resource file"
+msgstr ""
+
+#: src/pomeranian.vala:869
+#: src/pomeranian.vala:940
+#: src/pomeranian.vala:1248
+#: src/pomeranian.vala:1489
+msgid "Restart Pomodoro"
+msgstr ""
+
+#: src/pomeranian.vala:879
+#: src/pomeranian.vala:885
+#: src/pomeranian.vala:944
+#: src/pomeranian.vala:948
+#: src/pomeranian.vala:991
+#: src/pomeranian.vala:1001
+#: src/pomeranian.vala:1025
+#: src/pomeranian.vala:1027
+#: src/pomeranian.vala:1258
+#: src/pomeranian.vala:1264
+#: src/pomeranian.vala:1330
+#: src/pomeranian.vala:1466
+#: src/pomeranian.vala:1474
+#: src/pomeranian.vala:1495
+#: src/pomeranian.vala:1499
+msgid "Start Pomodoro"
+msgstr ""
+
+#: src/pomeranian.vala:983
+msgid "Stop"
+msgstr ""
+
+#: src/pomeranian.vala:990
+#: src/pomeranian.vala:1024
+msgid "Stopped"
+msgstr ""
+
+#: src/pomeranian.vala:1005
+msgid "¹Start Short Break"
+msgstr ""
+
+#: src/pomeranian.vala:1009
+msgid "²Start Short Break"
+msgstr ""
+
+#: src/pomeranian.vala:1013
+msgid "³Start Short Break"
+msgstr ""
+
+#: src/pomeranian.vala:1017
+#: src/pomeranian.vala:1342
+msgid "⁴Start Long Break"
+msgstr ""
+
+#: src/pomeranian.vala:1333
+msgid "¹Start Break"
+msgstr ""
+
+#: src/pomeranian.vala:1336
+msgid "²Start Break"
+msgstr ""
+
+#: src/pomeranian.vala:1339
+msgid "³Start Break"
+msgstr ""
+
+#: src/pomeranian.vala:1344
+msgid "Impossible Phase of timer"
+msgstr ""
+
+#: src/pomeranian.vala:1831
+#: src/pomeranian.vala:1840
+msgid "Built-in filename could not be converted to URI"
+msgstr ""
+
+#: data/ui/pomeranian.ui:11
+msgid "©2012 Adam and Monica Stark"
+msgstr ""
+
+#: data/ui/pomeranian.ui:13
+msgid "Our homepage"
+msgstr ""
+
+#: data/ui/pomeranian.ui:14
+msgid ""
+"Copyright © 2012, Adam and Monica Stark\n"
+"All rights reserved.\n"
+"\n"
+"Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n"
+"\n"
+"Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n"
+"Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n"
+"Neither the name of the Adam and Monica Stark nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\n"
+"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+msgstr ""
+
+#: data/ui/pomeranian.ui:66
+msgid "Wind up"
+msgstr ""
+
+#: data/ui/pomeranian.ui:81
+msgid "Ringing noise"
+msgstr ""
+
+#: data/ui/pomeranian.ui:96
+msgid "Background tick"
+msgstr ""
+
+#: data/ui/pomeranian.ui:152
+msgid "Timer"
+msgstr ""
+
+#: data/ui/pomeranian.ui:261
+msgid "Pomeranian"
+msgstr ""
+
+#: data/ui/pomeranian.ui:314
+msgid "Preferences"
+msgstr ""
+
+#: data/ui/pomeranian.ui:385
+msgid "Pomodoro Length"
+msgstr ""
+
+#: data/ui/pomeranian.ui:399
+msgid "Short Break Length"
+msgstr ""
+
+#: data/ui/pomeranian.ui:414
+msgid "Long Break Length"
+msgstr ""
+
+#: data/ui/pomeranian.ui:491
+msgid "Type of Interface"
+msgstr ""
+
+#: data/ui/pomeranian.ui:513
+msgid "Sound Options"
+msgstr ""
+
+#: data/ui/pomeranian.ui:536
+msgid "Interface Options"
+msgstr ""
+
+#: data/ui/pomeranian.ui:609
+msgid "Short Break"
+msgstr ""
+
+#: data/ui/pomeranian.ui:618
+msgid "Long Break"
+msgstr ""
+
+#: data/ui/pomeranian.ui:655
+msgid "Opacity"
+msgstr ""
+
+#: data/ui/pomeranian.ui:669
+msgid "Size"
+msgstr ""
+

@@ -5,7 +5,7 @@
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
     <property name="window_position">mouse</property>
-    <property name="type_hint">toolbar</property>
+    <property name="type_hint">splashscreen</property>
     <property name="program_name">Pomeranian</property>
     <property name="version">0.1.0</property>
     <property name="copyright" translatable="yes">©2012 Adam and Monica Stark</property>
@@ -22,10 +22,11 @@ Neither the name of the Adam and Monica Stark nor the names of its contributors 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</property>
     <property name="authors">Adam Stark</property>
     <property name="artists">Egg Timer by Jon Monteverde, released under Creative Commons license, available for download at http://www.freesound.org/people/xyzr_kx/sounds/14263/</property>
-    <property name="license_type">mit-x11</property>
+    <property name="license_type">bsd</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="aboutdialog-vbox1">
         <property name="can_focus">False</property>
+        <property name="valign">end</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
         <child internal-child="action_area">
