@@ -36,6 +36,7 @@ public class Main : GLib.Object {
 		
 		Intl.setlocale( LocaleCategory.ALL, "" );
 		Intl.bindtextdomain( Pomeranian.Config.GETTEXT_PACKAGE , "/usr/share/locale" );
+		Intl.bind_textdomain_codeset(Pomeranian.Config.GETTEXT_PACKAGE, "utf8");
 		Intl.textdomain( Pomeranian.Config.GETTEXT_PACKAGE );
 		
 		Gtk.init(ref args);
@@ -49,7 +50,6 @@ public class Main : GLib.Object {
 }
 
 namespace Pomeranian {
-
 public class Preferences : GLib.Object {
 	public int pomodoro_time {get; set;}
 	public int s_break_time  {get; set;}
@@ -235,6 +235,7 @@ public delegate PreferenceEnabled? PreferenceFactoryFunc () ;
 public PreferenceEnabled? NO_PREFERENCES () {
 	return null;
 }
+
 public abstract class PreferenceEnabled : GLib.Object {
 	public abstract void configure (KeyFile key_file) ;
 	public abstract void configure_from_default () ;
@@ -242,7 +243,6 @@ public abstract class PreferenceEnabled : GLib.Object {
 	
 	public abstract signal void has_changed ();
 }
-
 public abstract class PreferenceDialogEnabled : GLib.Object {
 	public abstract void instantiate (Gtk.Bin container);
 	public abstract void show ()  ;
@@ -250,6 +250,7 @@ public abstract class PreferenceDialogEnabled : GLib.Object {
 	public abstract void try_commit ();
 	public abstract void try_uncommit ();
 }
+
 public class PreferenceDialog : GLib.Object {
 	private weak App app;
 	private PreferenceDialogEnabled? ui_sub_dialog;
@@ -496,7 +497,7 @@ public class App : GLib.Object {
 		if (this._status_icon == null)
 		{
 			this.get_ui() ; 
-			this._status_icon = new Gtk.StatusIcon.from_stock( Gtk.Stock.YES );
+			this._status_icon = new Gtk.StatusIcon();
 			this._status_icon.title = this.PROGRAM_NAME;
 			this._status_icon.popup_menu.connect((button_id, timestamp) => {
 				this.debug("Trying popup.\n");
@@ -505,14 +506,45 @@ public class App : GLib.Object {
 					{
 						this.debug( "    %s\n", (menu_item as Gtk.MenuItem).label);
 					});
-				this.get_popup_menu().popup (null,null,null,button_id,timestamp); 
+				this.get_popup_menu().popup (null,null,this._status_icon.position_menu,button_id,timestamp); 
 			});
 			this._status_icon.activate.connect(() =>
 				{
 					this.get_ui().toggle_show_hide();
 				});
+			this._status_icon.notify["size"].connect(() => {
+					this.status_icon_set_pixbuf (this.get_status_icon ());
+				});
+			this.status_icon_set_pixbuf (this._status_icon);
+			
 		}
 		return this._status_icon;
+	}
+	private void status_icon_set_pixbuf (Gtk.StatusIcon status_icon) {
+		var size   = status_icon.size;
+		var screen = status_icon.screen;
+		
+		var surface = new Cairo.ImageSurface (Cairo.Format.ARGB32, size, size);
+		var cr      = new Cairo.Context (surface);
+		surface.flush ();
+		
+		cr.set_source_rgb (23/255,145/255,26/255);
+		
+		cr.new_path ();
+		cr.move_to (1,1);
+		cr.line_to (1,size-2);
+		cr.line_to (size-2,size-2);
+		cr.line_to (size-2,1);
+		cr.close_path ();
+		
+		cr.fill_preserve ();
+		cr.set_source_rgb (23/300,145/300,26/300);
+		cr.stroke ();
+		
+		surface.mark_dirty ();
+		
+		var pixmap = Gdk.pixbuf_get_from_surface (surface,0,0,size,size);
+		status_icon.set_from_pixbuf (pixmap);
 	}
 	private Gtk.Menu get_popup_menu ()  {
 		if (this._popup_menu == null) 
@@ -1672,7 +1704,6 @@ public class SoundHandlerFactory : GLib.Object {
 		}
 	}
 }
-
 public abstract class SoundEvent : GLib.Object {
 	public abstract void cancel ();
 }
@@ -1980,3 +2011,4 @@ public class GStreamerLoop : SoundLoop {
 	}
 }
 }
+
