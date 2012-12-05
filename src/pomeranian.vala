@@ -496,7 +496,6 @@ public class App : GLib.Object {
 	private Gtk.StatusIcon get_status_icon ()  {
 		if (this._status_icon == null)
 		{
-			this.get_ui() ; 
 			this._status_icon = new Gtk.StatusIcon();
 			this._status_icon.title = this.PROGRAM_NAME;
 			this._status_icon.popup_menu.connect((button_id, timestamp) => {
@@ -514,6 +513,9 @@ public class App : GLib.Object {
 				});
 			this._status_icon.notify["size"].connect(() => {
 					this.status_icon_set_pixbuf (this.get_status_icon ());
+			});
+			this.get_ui().notify["is-running"].connect(() => {
+					this.status_icon_set_pixbuf (this.get_status_icon ());
 				});
 			this.status_icon_set_pixbuf (this._status_icon);
 			
@@ -528,17 +530,27 @@ public class App : GLib.Object {
 		var cr      = new Cairo.Context (surface);
 		surface.flush ();
 		
-		cr.set_source_rgb (23/255,145/255,26/255);
-		
 		cr.new_path ();
-		cr.move_to (1,1);
-		cr.line_to (1,size-2);
-		cr.line_to (size-2,size-2);
-		cr.line_to (size-2,1);
+		cr.move_to (size/15,size/15);
+		cr.line_to (size/15,size-size/15);
+		cr.line_to (size-size/15,size-size/15);
+		cr.line_to (size-size/15,size/15);
 		cr.close_path ();
-		
+		if (this.get_ui().is_running) {
+			cr.set_source_rgb (0.67,0.06,0.06); // 
+		}
+		else {
+			cr.set_source_rgb (0.06,0.67,0.06); // 
+		}
 		cr.fill_preserve ();
-		cr.set_source_rgb (23/300,145/300,26/300);
+		
+		if (this.get_ui().is_running) {
+			cr.set_source_rgb (0.33,0.03,0.03); // 
+		}
+		else {
+			cr.set_source_rgb (0.03,0.33,0.03); // 
+		}
+		cr.set_line_width (1);
 		cr.stroke ();
 		
 		surface.mark_dirty ();
@@ -724,6 +736,7 @@ public abstract class TimerUI : Object {
 	}
 	
 	public bool is_running {get; set;}
+	public int  minutes {get; private set;}
 	
 	public abstract void toggle_show_hide () ;
 	public abstract void destroy ();
@@ -739,10 +752,12 @@ public abstract class TimerUI : Object {
 	}	
 	public virtual signal void ring (Gtk.Widget? canberra_widget = null) {
 		this.is_running = false;
+		this.minutes    = 0;
 		this.remove_clock_tick ();
 	}
 	public virtual signal void cancel () {
 		this.is_running = false;
+		this.minutes    = 0;
 		this.remove_clock_tick ();
 	}
 	
@@ -757,6 +772,7 @@ public abstract class TimerUI : Object {
 		int minutes, seconds;
 		
 		if (this.get_time(out minutes, out seconds)) {
+			if (this.minutes != minutes) this.minutes = minutes;
 			this.update_time_display (minutes, seconds);
 			//this.get_gtk_time_label().label = minutes.to_string() + ":" + ("%02d").printf (seconds);
 		}
