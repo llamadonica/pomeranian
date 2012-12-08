@@ -6,7 +6,10 @@
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
-	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
+	-DPKGDATADIR=\""$(pkgdatadir)"\" \
+	-DSOUNDSDIR=\""$(pkgdatadir)/sounds"\" \
+	-DUIDIR=\""$(pkgdatadir)/ui"\" \
+	-DANIDIR=\""$(pkgdatadir)/ani"\" \
 	$(POMERANIAN_CFLAGS)
 
 AM_CFLAGS =\

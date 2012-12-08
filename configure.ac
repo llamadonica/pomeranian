@@ -29,17 +29,10 @@ gtk+-3.0)
 
 ALL_LINGUAS=""
 AM_GLIB_GNU_GETTEXT
-pkgdatadir=$datadir/pomeranian
 
 GETTEXT_PACKAGE=pomeranian
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE], ["${GETTEXT_PACKAGE}"], [gettext domain])
-AC_SUBST(datadir)
-AC_SUBST(datarootdir)
-AC_DEFINE_UNQUOTED([PKGDATADIR],["$pkgdatadir"],[package data dir])
-AC_DEFINE_UNQUOTED([SOUNDSDIR],["$pkgdatadir/sounds"],[sound data dir])
-AC_DEFINE_UNQUOTED([UIDIR],["$pkgdatadir/ui"],[ui data dir])
-AC_DEFINE_UNQUOTED([ANIDIR],["$pkgdatadir/ani"],[animation data dir])
 
 AC_OUTPUT([ po/Makefile.in
 Makefile
