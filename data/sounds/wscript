@@ -1,4 +1,0 @@
-#!/usr/bin/env python
-
-def build(bld):
-   bld.install_files('${SOUNDSDIR}', ['wind.ogg','ring.ogg','tick-loop.ogg'])
