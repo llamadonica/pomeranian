@@ -12,6 +12,12 @@ AM_CPPFLAGS = \
 	-DANIDIR=\""$(pkgdatadir)/ani"\" \
 	$(POMERANIAN_CFLAGS)
 
+if DEBUG
+	AM_CPPFLAGS += -DDEBUG=1
+else
+	AM_CPPFLAGS += -DDEBUG=0
+endif
+
 AM_CFLAGS =\
 	 -Wall\
 	 -g

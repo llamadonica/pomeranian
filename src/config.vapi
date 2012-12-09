@@ -41,6 +41,7 @@ namespace Config {
        public const string ANIDIR;
        
        public const string GETTEXT_PACKAGE;
+       public const bool   DEBUG;
        void use () {;}
 }
 }
