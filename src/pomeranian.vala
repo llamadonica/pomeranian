@@ -437,7 +437,6 @@ public class PreferenceDialog : GLib.Object {
 
 public class App : GLib.Object {
 	const string FONT_DESCRIPTION = "Sans Bold 6";
-	public const bool   DEBUG_STATE  = true;
 	public const string PROGRAM_NAME = "Pomeranian";
 	public const string VERSION = Config.VERSION;
 	public       string UI_FILE ;
@@ -445,7 +444,7 @@ public class App : GLib.Object {
 	public bool failed = false;
 	
 	public void debug(string format, ...) {
-		if (this.DEBUG_STATE) {
+		if (Config.DEBUG) {
 			var l      = va_list();
 			var output = format.vprintf(l);
 			stderr.printf("%s: %s",this.PROGRAM_NAME,output);
@@ -474,7 +473,7 @@ public class App : GLib.Object {
 	//}}}
 	
 	public void touch () {;}
-	private PreferenceDialog get_preference_dialog() {
+	public PreferenceDialog get_preference_dialog() {
 		if (this._preference_dialog == null)
 			this._preference_dialog = new PreferenceDialog (this);
 		return this._preference_dialog;
@@ -856,6 +855,7 @@ public class GtkTimer : TimerUI {
 	private Gtk.MenuItem _timer_dialog_short_break ;
 	private Gtk.MenuItem _timer_dialog_long_break ;
 	private Gtk.MenuItem _timer_dialog_quit ;
+	private Gtk.MenuItem _timer_dialog_preferences;
 	//}}}
 	
 	private Gtk.Label get_gtk_time_label ()  {
@@ -963,6 +963,11 @@ public class GtkTimer : TimerUI {
 				{
 					Gtk.main_quit() ;
 				});
+			this.get_timer_dialog_preferences().activate.connect(() => 
+				{
+					this.app.get_preference_dialog().run();
+					this.app.get_preference_dialog().hide ();
+				});
 		}
 		return this._timer_dialog_menu;
 	}
@@ -1005,6 +1010,14 @@ public class GtkTimer : TimerUI {
 			
 		}
 		return this._timer_dialog_quit;
+	}
+	private Gtk.MenuItem get_timer_dialog_preferences ()  {
+		if (this._timer_dialog_preferences == null) {
+			this._timer_dialog_preferences = 
+				this.app.get_builder().get_object("timer-dialog-preferences") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_preferences;
 	}
 		
 	public void run_button () {
@@ -1139,6 +1152,7 @@ public class VisualTimer : TimerUI {
 	private Gtk.MenuItem _timer_dialog_short_break ;
 	private Gtk.MenuItem _timer_dialog_long_break ;
 	private Gtk.MenuItem _timer_dialog_quit ;
+	private Gtk.MenuItem _timer_dialog_preferences;
 	private string anidir;
 	
 	//}}}
@@ -1342,6 +1356,11 @@ public class VisualTimer : TimerUI {
 				{
 					Gtk.main_quit() ;
 				});
+			this.get_timer_dialog_preferences().activate.connect(() => 
+			{
+				this.app.get_preference_dialog().run();
+				this.app.get_preference_dialog().hide ();
+			});
 		}
 		return this._timer_dialog_menu;
 	}
@@ -1384,6 +1403,14 @@ public class VisualTimer : TimerUI {
 			
 		}
 		return this._timer_dialog_quit;
+	}
+	private Gtk.MenuItem get_timer_dialog_preferences ()  {
+		if (this._timer_dialog_preferences == null) {
+			this._timer_dialog_preferences = 
+				this.app.get_builder().get_object("timer-dialog-preferences") as Gtk.MenuItem ;
+			
+		}
+		return this._timer_dialog_preferences;
 	}
 	
 	public bool redraw_surface (Cairo.Context cr) {

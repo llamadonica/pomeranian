@@ -2,6 +2,11 @@
 
 ## Created by Anjuta
 
+if DEBUG
+DEBUG_FLAG = -DDEBUG=1
+else
+DEBUG_FLAG = -DDEBUG=0
+endif
 
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
@@ -10,13 +15,8 @@ AM_CPPFLAGS = \
 	-DSOUNDSDIR=\""$(pkgdatadir)/sounds"\" \
 	-DUIDIR=\""$(pkgdatadir)/ui"\" \
 	-DANIDIR=\""$(pkgdatadir)/ani"\" \
+	$(DEBUG_FLAG) \
 	$(POMERANIAN_CFLAGS)
-
-if DEBUG
-	AM_CPPFLAGS += -DDEBUG=1
-else
-	AM_CPPFLAGS += -DDEBUG=0
-endif
 
 AM_CFLAGS =\
 	 -Wall\
