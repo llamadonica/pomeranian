@@ -3,11 +3,11 @@ Upstream-Name: pomeranian
 Source: <https://github.com/llamadonica/pomeranian/archive/master.tar.gz>
 
 Files: *
-Copyright: 2012 Adam Stark <adstark1982@yahoo.com>
+Copyright: 2012 Adam Stark (home) <adstark1982@yahoo.com>
 License: BSD-3-Clause
 
 Files: debian/*
-Copyright: 2012 Adam Stark <adstark1982@yahoo.com>
+Copyright: 2012 Adam Stark (home) <adstark1982@yahoo.com>
 License: BSD-3-Clause
 
 License: BSD-3-Clause
