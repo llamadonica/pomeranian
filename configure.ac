@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl Created by Anjuta application wizard.
 
 
-AC_INIT(pomeranian, 0.3.0)
+AC_INIT(pomeranian, 0.3.1)
 
 AC_CONFIG_HEADERS([config.h])
 
@@ -43,11 +43,15 @@ GETTEXT_PACKAGE=pomeranian
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE], ["${GETTEXT_PACKAGE}"], [gettext domain])
 
-AC_OUTPUT([ po/Makefile.in
+AC_CONFIG_FILES([ po/Makefile.in
 Makefile
 src/Makefile
+data/pomeranian.desktop
 data/Makefile
 data/ani/Makefile
 data/ui/Makefile
 data/sounds/Makefile
 ])
+
+AC_OUTPUT
+
