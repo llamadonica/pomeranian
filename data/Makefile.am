@@ -6,7 +6,7 @@ icon_DATA = pomeranian.png
 desktopdir = $(datadir)/applications
 desktop_DATA = pomeranian.desktop
 
-EXTRA_DIST = $(icon_DATA)
+EXTRA_DIST = $(icon_DATA) $(desktop_DATA)
 
 SUBDIRS = ui sounds ani
 
