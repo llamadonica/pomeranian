@@ -1,7 +1,7 @@
 Source: pomeranian
 Section: misc
 Priority: extra
-Maintainer: Adam Stark <adstark1982@yahoo.com>
+Maintainer: Adam Stark (home) <adstark1982@yahoo.com>
 Build-Depends: debhelper (>= 8.0.0), libcanberra-gtk3-dev, libglib2.0-dev, libgtk-3-dev, libgstreamer0.10-dev, valac-0.16, libgee-dev
 Standards-Version: 3.9.2
 Homepage: http://llamadonica.github.com/pomeranian
