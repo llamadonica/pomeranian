@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Type=Application
+_Name=Pomeranian
+_GenericName=Pomodoro timer
+_Comment=Use a tomato timer to manage your time
+Categories=GTK;Utility
+Exec=@prefix@/bin/emperor
+Icon=pomodoro
