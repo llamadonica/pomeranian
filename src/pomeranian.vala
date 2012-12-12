@@ -1620,7 +1620,7 @@ public class VisualTimerPreferences : PreferenceEnabled {
 			this.opacity = key_file.get_double ("VisualTimerPreferences","opacity");
 		}
 		catch (KeyFileError err) {
-			this.opacity  = 1;
+			this.opacity  = 100;
 			this.has_changed();
 		}
 		try {
@@ -1642,7 +1642,7 @@ public class VisualTimerPreferences : PreferenceEnabled {
 		}
 	}
 	public override void configure_from_default () {
-		this.opacity = 1;
+		this.opacity = 100;
 		this.size    = 180;
 		this.is_positioned = false;
 		this.has_changed();
