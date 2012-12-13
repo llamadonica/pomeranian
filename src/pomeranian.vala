@@ -331,7 +331,8 @@ public class PreferenceDialog : GLib.Object {
 			bool valid_view  = false;
 			
 			var key_iterator = this.app.get_ui_factory().instantiaters.map_iterator();
-			if (key_iterator.first()) {
+			key_iterator.unset();
+			if (key_iterator.next()) {
 				do {
 					ui_menu.append(key_iterator.get_key(), _(key_iterator.get_key()));
 					if (this.previous_ui_view == key_iterator.get_key())
@@ -673,7 +674,6 @@ public class App : GLib.Object {
 		if (this._sound_handler_factory == null) {
 			this._sound_handler_factory = new SoundHandlerFactory (this.get_app_config());
 			
-			this._sound_handler_factory.register ("Canberra",  CanberraSoundHandler.FACTORY_FUNC, NO_PREFERENCES);
 			this._sound_handler_factory.register ("GStreamer", GStreamerSoundHandler.FACTORY_FUNC, GStreamerSoundHandlerPreferences.FACTORY_FUNC);
 		}
 		return this._sound_handler_factory;
@@ -1786,54 +1786,6 @@ public abstract class SoundHandler : GLib.Object {
 	public abstract void destroy ();
 	~SoumdHandler () {
 		this.destroy ();
-	}
-}
-
-public class CanberraSoundHandler : SoundHandler {
-	public unowned Canberra.Context canberra_context ;
-	private unowned App app;
-	private uint32 current_id;
-	private static string? parse_soundbite (SoundBite id) {
-		switch (id) {
-			case SoundBite.RING:
-				return Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null);
-			case SoundBite.WIND:
-				return Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null);
-			default:
-				return null;
-		}
-	}
-	public override SoundEvent? play (SoundBite sound, Gtk.Widget? widget ) {
-		var sound_name = CanberraSoundHandler.parse_soundbite (sound);
-		if (sound_name != null) {
-			this.app.debug ("Playing noise %s\n", sound_name);
-			CanberraGtk.play_for_widget( widget, ++this.current_id, Canberra.PROP_MEDIA_FILENAME, sound_name );
-			return new CanberraEvent (this.current_id, this) as SoundEvent;
-		}
-		return null;
-	}
-	public override SoundLoop? loop (SoundBite _1, Gtk.Widget? _2 ) {
-		return null;
-	}
-	public CanberraSoundHandler (App app) {
-		this.app = app;
-		this.canberra_context = CanberraGtk.context_get ();
-	}
-	public static SoundHandler FACTORY_FUNC (App app)  {
-		var that = new CanberraSoundHandler (app);
-		return that as SoundHandler;
-	}
-	public override void destroy () {return;}
-}
-public class CanberraEvent :  SoundEvent {
-	private uint32 _id;
-	private weak CanberraSoundHandler handler;
-	public CanberraEvent  (uint32 id, CanberraSoundHandler handler) {
-		this._id = id;
-		this.handler = handler;
-	}
-	public override void cancel () {
-		this.handler.canberra_context.cancel (this._id);
 	}
 }
 

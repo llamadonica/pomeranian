@@ -28,11 +28,10 @@ dnl Check for vala
 AM_PROG_VALAC([0.16.0])
 
 
-PKG_CHECK_MODULES(POMERANIAN, libcanberra-gtk3
-glib-2.0
+PKG_CHECK_MODULES(POMERANIAN, glib-2.0
 gobject-2.0
 gstreamer-0.10
-gee-1.0
+gee-0.8
 gtk+-3.0)
 
 
