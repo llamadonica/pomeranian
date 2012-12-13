@@ -779,6 +779,15 @@ dt {
   margin-right: 10px;
   font-size: 11px;
 }
+#header nav li.new {
+  position: relative;
+}
+#header nav li.new img.new-badge {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  height: 30px;
+}
 
 section {
   max-width: 650px;
