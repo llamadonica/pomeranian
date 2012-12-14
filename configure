@@ -708,6 +708,8 @@ PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
 VALAC
+MINGW_BUILD_FALSE
+MINGW_BUILD_TRUE
 DEBUG_FALSE
 DEBUG_TRUE
 am__fastdepCC_FALSE
@@ -3776,6 +3778,14 @@ fi
 
 
 
+case $host in #(
+  *-*-mingw32) :
+    mingw=true ;; #(
+  *) :
+    mingw=false
+      ;;
+esac
+
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug; case "${enableval}" in
@@ -3794,6 +3804,14 @@ fi
 else
   DEBUG_TRUE='#'
   DEBUG_FALSE=
+fi
+
+ if test x$mingw = xtrue; then
+  MINGW_BUILD_TRUE=
+  MINGW_BUILD_FALSE='#'
+else
+  MINGW_BUILD_TRUE='#'
+  MINGW_BUILD_FALSE=
 fi
 
 
@@ -5369,6 +5387,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${DEBUG_TRUE}" && test -z "${DEBUG_FALSE}"; then
   as_fn_error $? "conditional \"DEBUG\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${MINGW_BUILD_TRUE}" && test -z "${MINGW_BUILD_FALSE}"; then
+  as_fn_error $? "conditional \"MINGW_BUILD\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

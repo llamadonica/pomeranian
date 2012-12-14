@@ -8,13 +8,25 @@ else
 DEBUG_FLAG = -DDEBUG=0
 endif
 
+if MINGW_BUILD
+MINGW_FLAG = -D MINGW_BUILD
+PATH_DELIMITER = "\\\\"
+TRUE_PKGDATADIR = pomeranian
+else
+MINGW_FLAG = 
+PATH_DELIMITER = /
+TRUE_PKGDATADIR = "$(pkgdatadir)"
+endif
+
+
+
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
-	-DPKGDATADIR=\""$(pkgdatadir)"\" \
-	-DSOUNDSDIR=\""$(pkgdatadir)/sounds"\" \
-	-DUIDIR=\""$(pkgdatadir)/ui"\" \
-	-DANIDIR=\""$(pkgdatadir)/ani"\" \
+	-DPKGDATADIR=\""$(TRUE_PKGDATADIR)"\" \
+	-DSOUNDSDIR=\""$(TRUE_PKGDATADIR)$(PATH_DELIMITER)sounds"\" \
+	-DUIDIR=\""$(TRUE_PKGDATADIR)$(PATH_DELIMITER)ui"\" \
+	-DANIDIR=\""$(TRUE_PKGDATADIR)$(PATH_DELIMITER)ani"\" \
 	$(DEBUG_FLAG) \
 	$(POMERANIAN_CFLAGS)
 
@@ -28,7 +40,7 @@ pomeranian_SOURCES = \
 	pomeranian.vala config.vapi input_rectangles.vala
 
 pomeranian_VALAFLAGS =  \
-	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-1.0 --pkg gstreamer-0.10 --pkg cairo -g --save-temps --define=DEBUG
+	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-0.8 --pkg gstreamer-0.10 --pkg cairo -g --save-temps $(MINGW_FLAG)
 
 pomeranian_LDFLAGS = \
 	-Wl,--export-dynamic 

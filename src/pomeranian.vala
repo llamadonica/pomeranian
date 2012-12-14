@@ -65,7 +65,7 @@ public class Preferences : GLib.Object {
 	private int file_exists = -1;
 	
 	public Preferences () {
-		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
+		this.INI_FILE = App.path_from_resource(Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null));
 		this.configurators = new List<PreferenceEnabled> ();
 		
 	}
@@ -346,7 +346,7 @@ public class PreferenceDialog : GLib.Object {
 			}
 			ui_menu.changed.connect(() =>
 				{
-					this.app.debug("Changed UI interface to: %s\n", ui_menu.get_active_id());
+					App.debug("Changed UI interface to: %s\n", ui_menu.get_active_id());
 					if (this.ui_sub_dialog != null)
 						this.ui_sub_dialog .hide();
 					
@@ -364,7 +364,7 @@ public class PreferenceDialog : GLib.Object {
 						this.get_ui_expander().sensitive = false;
 					}
 					
-					this.app.debug("Finished interface change: %s\n", ui_menu.get_active_id());
+					App.debug("Finished interface change: %s\n", ui_menu.get_active_id());
 				});
 			
 			this.ui_sub_dialog = this.app.get_ui().preference_dialog ;
@@ -438,23 +438,40 @@ public class PreferenceDialog : GLib.Object {
 
 public class App : GLib.Object {
 	const string FONT_DESCRIPTION = "Sans Bold 6";
-	public const string PROGRAM_NAME = "Pomeranian";
+	public static const string PROGRAM_NAME = "Pomeranian";
 	public const string VERSION = Config.VERSION;
 	public       string UI_FILE ;
 	public SoundLoop?  sound_loop;
 	public bool failed = false;
 	
-	public void debug(string format, ...) {
+	public static string? path_from_resource(string resource) {
+#if MINGW_BUILD
+		var    paths = Environment.get_system_data_dirs ();
+		foreach (string path in paths) {
+			var resultant_path = Path.build_filename(path, resource, null);
+			App.debug( "Trying path %s\n", resultant_path);
+			
+			if (FileUtils.test (resultant_path, FileTest.EXISTS)) {
+				App.debug( "Found file at %s\n", resultant_path);
+				return resultant_path;
+			}
+		}
+		return null;
+#else
+		return resource;
+#endif
+	}
+	public static void debug(string format, ...) {
 		if (Config.DEBUG) {
 			var l      = va_list();
 			var output = format.vprintf(l);
-			stderr.printf("%s: %s",this.PROGRAM_NAME,output);
+			stderr.printf("%s: %s",App.PROGRAM_NAME,output);
 		}
 	}
 	public void error(string format, ...) {
 		var l      = va_list();
 		var output = format.vprintf(l);
-		stderr.printf("%s: %s",this.PROGRAM_NAME,output);
+		stderr.printf("%s: %s",App.PROGRAM_NAME,output);
 		
 		this.failed = true;
 		Gtk.main_quit ();
@@ -498,13 +515,13 @@ public class App : GLib.Object {
 		if (this._status_icon == null)
 		{
 			this._status_icon = new Gtk.StatusIcon();
-			this._status_icon.title = this.PROGRAM_NAME;
+			this._status_icon.title = App.PROGRAM_NAME;
 			this._status_icon.popup_menu.connect((button_id, timestamp) => {
-				this.debug("Trying popup.\n");
-				this.debug("Menu items should be:\n");
+				App.debug("Trying popup.\n");
+				App.debug("Menu items should be:\n");
 				this.get_popup_menu().foreach ((menu_item) =>
 					{
-						this.debug( "    %s\n", (menu_item as Gtk.MenuItem).label);
+						App.debug( "    %s\n", (menu_item as Gtk.MenuItem).label);
 					});
 				this.get_popup_menu().popup (null,null,this._status_icon.position_menu,button_id,timestamp); 
 			});
@@ -619,7 +636,7 @@ public class App : GLib.Object {
 		if (this._about_dialog == null)
 		{
 			this._about_dialog = this.get_builder().get_object ("about-dialog") as Gtk.AboutDialog;
-			this._about_dialog.program_name = this.PROGRAM_NAME ;
+			this._about_dialog.program_name = App.PROGRAM_NAME ;
 			this._about_dialog.version = this.VERSION ;
 		}
 		return this._about_dialog;
@@ -685,8 +702,8 @@ public class App : GLib.Object {
 		return this._sound_handler;
 	}
 	public App ()  {
-		this.UI_FILE = Path.build_filename (Config.UIDIR,Config.PACKAGE_NAME + ".ui",null);
-		this.debug (this.UI_FILE);
+		this.UI_FILE = App.path_from_resource(Path.build_filename (Config.UIDIR,Config.PACKAGE_NAME + ".ui",null));
+		App.debug (this.UI_FILE);
 		/* Create the PomeranianConfig
 		 */
 		this.configure_app_preferences ();
@@ -871,9 +888,9 @@ public class GtkTimer : TimerUI {
 				this.app.get_builder().get_object("gtk-timer-dialog") as Gtk.Dialog ;
 			try {
 				this._gtk_timer_dialog.set_icon_from_file (
-					Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null));
+					App.path_from_resource(Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null)));
 			} catch (Error e) {
-				this.app.debug("Couldn't set icon to: pomeranian.png\n") ;
+				App.debug("Couldn't set icon to: pomeranian.png\n") ;
 			}
 			/*
 			 * Set-up the button.
@@ -918,7 +935,7 @@ public class GtkTimer : TimerUI {
 			this._gtk_timer_dialog_pulldown_arrow.button_press_event.connect(
 						(event) =>
 						{
-							this.app.debug ("Hit button press.\n");
+							App.debug ("Hit button press.\n");
 							switch (event.button) {
 								case 1:  	this.get_timer_dialog_menu().popup (
 												null,
@@ -1021,7 +1038,7 @@ public class GtkTimer : TimerUI {
 	}
 		
 	public void run_button () {
-		this.app.debug ("Reached run_button");
+		App.debug ("Reached run_button");
 		switch (this.next_action) {
 			case (CurrentButtonAct.START_POMODORO):
 				this.wind(this.app.get_app_config().pomodoro_time,0,this.get_gtk_timer_dialog_button());
@@ -1182,9 +1199,9 @@ public class VisualTimer : TimerUI {
 			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
 			try {
 				this._pom_gtk_window.set_icon_from_file (
-					Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null));
+					App.path_from_resource(Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null)));
 			} catch (Error e) {
-				this.app.debug("Couldn't set icon to: pomeranian.png\n") ;
+				App.debug("Couldn't set icon to: pomeranian.png\n") ;
 			}
 			
 			if (this.preferences.is_positioned) {
@@ -1204,7 +1221,7 @@ public class VisualTimer : TimerUI {
 						input_region_temp[j].width = (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp[j].x;
 						input_region_temp[j].height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp[j].y;
 						if (input_region_temp[j].width > 0 && input_region_temp[j].height > 0) j++;
-						this.app.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
+						App.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
 					}
 					Cairo.RectangleInt[] input_region_new = new Cairo.RectangleInt[j + 1];
 					for (int i = 0; i<=j; i++) 
@@ -1213,7 +1230,7 @@ public class VisualTimer : TimerUI {
 					this.get_pom_gtk_window().set_keep_above(true); 
 					Cairo.Region region   = new Cairo.Region.rectangles(input_region_new);
 					this.get_pom_gtk_window().get_window().input_shape_combine_region(region,0,0);
-					this.app.debug("Input shape combined. %d\n", input_region_temp.length);
+					App.debug("Input shape combined. %d\n", input_region_temp.length);
 				});
 			this._pom_gtk_window.destroy.connect(() => {
 					this.preferences.disconnect (opacity_handler);
@@ -1245,7 +1262,7 @@ public class VisualTimer : TimerUI {
 						input_region_temp[j].width = (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp[j].x;
 						input_region_temp[j].height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp[j].y;
 						if (input_region_temp[j].width > 0 && input_region_temp[j].height > 0) j++;
-						this.app.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
+						App.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
 					}
 					Cairo.RectangleInt[] input_region_new = new Cairo.RectangleInt[j + 1];
 					for (int i = 0; i<=j; i++) 
@@ -1253,7 +1270,7 @@ public class VisualTimer : TimerUI {
 					
 					Cairo.Region region   = new Cairo.Region.rectangles(input_region_new);
 					this.get_pom_gtk_window().get_window().input_shape_combine_region(region,0,0);
-					this.app.debug("Input shape combined. %d\n", input_region_temp.length);
+					App.debug("Input shape combined. %d\n", input_region_temp.length);
 				});
 			this.get_pom_gtk_surface().destroy.connect(() => {
 					this.preferences.disconnect (size_handler);
@@ -1321,7 +1338,7 @@ public class VisualTimer : TimerUI {
 		var format = "%04d.png";
 		if ( this.frame_should_be () != current_frame
 		     || this._current_frame == null ) {
-			var file_name = Path.build_filename(this.anidir,format.printf(this.current_frame = this.frame_should_be ()));
+			var file_name = App.path_from_resource(Path.build_filename(this.anidir,format.printf(this.current_frame = this.frame_should_be ())));
 			this._current_frame = new Cairo.ImageSurface.from_png (file_name);
 		}
 		return this._current_frame;
@@ -1497,7 +1514,7 @@ public class VisualTimer : TimerUI {
 		this.anidir = Config.ANIDIR;
 		this.get_pom_gtk_window().show();
 		this.preferences.notify.connect((_,param) => {
-				this.app.debug ("Parameter %s changed.\n", param.name);
+				App.debug ("Parameter %s changed.\n", param.name);
 			});
 		this.preference_dialog = new VisualTimerPreferencesDialog (this) as PreferenceDialogEnabled;
 	}
@@ -1577,7 +1594,7 @@ public class VisualTimer : TimerUI {
 	}
 	
 	public void run_button () {
-		this.app.debug ("Reached run_button\n");
+		App.debug ("Reached run_button\n");
 		if (this.is_running) {
 			this.cancel ();
 			return;
@@ -1863,21 +1880,21 @@ public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
 				this.ringing_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ringing-sound");
 			}
 			catch (KeyFileError err) {
-				this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
+				this.ringing_sound = Filename.to_uri(App.path_from_resource(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null)));
 				this.has_changed();
 			}
 			try {
 				this.wind_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","wind-sound");
 			}
 			catch (KeyFileError err) {
-				this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
+				this.wind_sound = Filename.to_uri(App.path_from_resource(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null)));
 				this.has_changed();
 			}
 			try {
 				this.ticking_sound = key_file.get_string ("GStreamerSoundHandlerPreferences","ticking-sound");
 			}
 			catch (KeyFileError err) {
-				this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+				this.ticking_sound = Filename.to_uri(App.path_from_resource(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null)));
 				this.has_changed();
 			}
 		} catch (ConvertError e) {
@@ -1886,9 +1903,9 @@ public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
 	}
 	public override void configure_from_default () {
 		try {
-			this.ringing_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null));
-			this.wind_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null));
-			this.ticking_sound = Filename.to_uri(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null));
+			this.ringing_sound = Filename.to_uri(App.path_from_resource(Path.build_filename(Config.SOUNDSDIR,"ring.ogg",null)));
+			this.wind_sound = Filename.to_uri(App.path_from_resource(Path.build_filename(Config.SOUNDSDIR,"wind.ogg",null)));
+			this.ticking_sound = Filename.to_uri(App.path_from_resource(Path.build_filename(Config.SOUNDSDIR,"tick-loop.ogg",null)));
 		} catch (ConvertError e) {
 			error ("%s: %s", _("Built-in filename could not be converted to URI"), e.message);
 		}
