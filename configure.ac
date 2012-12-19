@@ -11,6 +11,12 @@ AM_INIT_AUTOMAKE([1.11])
 AM_SILENT_RULES([yes])
 
 AC_PROG_CC
+AM_PROG_CC_C_O
+
+AS_CASE([$host],
+       [*-*-mingw32], [mingw=true],
+       [mingw=false]
+     )
 
 AC_ARG_ENABLE([debug],
 	[  --enable-debug    Turn on debugging],
@@ -21,6 +27,7 @@ AC_ARG_ENABLE([debug],
 		esac],[debug=false])
 
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
+AM_CONDITIONAL([MINGW_BUILD], [test x$mingw = xtrue])
 
 PACKAGE=pomeranian
 

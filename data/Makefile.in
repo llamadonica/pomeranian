@@ -106,8 +106,9 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(desktopdir)" "$(DESTDIR)$(icondir)"
-DATA = $(desktop_DATA) $(icon_DATA)
+am__installdirs = "$(DESTDIR)$(desktopdir)" "$(DESTDIR)$(icondir)" \
+	"$(DESTDIR)$(schemadir)"
+DATA = $(desktop_DATA) $(icon_DATA) $(schema_DATA)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
@@ -252,11 +253,17 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-icondir = $(datadir)/pixmaps
+@MINGW_BUILD_FALSE@icondir = $(datadir)/pixmaps
+@MINGW_BUILD_TRUE@icondir = $(pkgdatadir)
+@MINGW_BUILD_FALSE@desktop_DATA = pomeranian.desktop
+@MINGW_BUILD_TRUE@desktop_DATA = 
+@MINGW_BUILD_FALSE@schema_DATA = 
+@MINGW_BUILD_TRUE@schema_DATA = gschemas.compiled
+@MINGW_BUILD_FALSE@schemadir = 
+@MINGW_BUILD_TRUE@schemadir = $(datadir)/glib-2.0/schemas
 icon_DATA = pomeranian.png
 desktopdir = $(datadir)/applications
-desktop_DATA = pomeranian.desktop
-EXTRA_DIST = $(icon_DATA) $(desktop_DATA)
+EXTRA_DIST = $(icon_DATA) $(desktop_DATA) $(schema_DATA)
 SUBDIRS = ui sounds ani
 all: all-recursive
 
@@ -335,6 +342,27 @@ uninstall-iconDATA:
 	@list='$(icon_DATA)'; test -n "$(icondir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(icondir)'; $(am__uninstall_files_from_dir)
+install-schemaDATA: $(schema_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(schema_DATA)'; test -n "$(schemadir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(schemadir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(schemadir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(schemadir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(schemadir)" || exit $$?; \
+	done
+
+uninstall-schemaDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(schema_DATA)'; test -n "$(schemadir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(schemadir)'; $(am__uninstall_files_from_dir)
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -549,7 +577,7 @@ check: check-recursive
 all-am: Makefile $(DATA)
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(desktopdir)" "$(DESTDIR)$(icondir)"; do \
+	for dir in "$(DESTDIR)$(desktopdir)" "$(DESTDIR)$(icondir)" "$(DESTDIR)$(schemadir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -602,7 +630,8 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-desktopDATA install-iconDATA
+install-data-am: install-desktopDATA install-iconDATA \
+	install-schemaDATA
 
 install-dvi: install-dvi-recursive
 
@@ -646,7 +675,8 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-desktopDATA uninstall-iconDATA uninstall-local
+uninstall-am: uninstall-desktopDATA uninstall-iconDATA uninstall-local \
+	uninstall-schemaDATA
 
 .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) \
 	cscopelist-recursive ctags-recursive install-am install-strip \
@@ -661,15 +691,23 @@ uninstall-am: uninstall-desktopDATA uninstall-iconDATA uninstall-local
 	install-exec install-exec-am install-html install-html-am \
 	install-iconDATA install-info install-info-am install-man \
 	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	installdirs-am maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-generic pdf pdf-am ps ps-am tags \
-	tags-recursive uninstall uninstall-am uninstall-desktopDATA \
-	uninstall-iconDATA uninstall-local
+	install-schemaDATA install-strip installcheck installcheck-am \
+	installdirs installdirs-am maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
+	pdf-am ps ps-am tags tags-recursive uninstall uninstall-am \
+	uninstall-desktopDATA uninstall-iconDATA uninstall-local \
+	uninstall-schemaDATA
 
 
 uninstall-local:
 	-rm -r $(pkgdatadir)
+	-rm -r $(schemadir)
+SCHEMAS:
+	mkdir schemas
+	cp /usr/share/glib-2.0/schemas/*.xml schemas/
+	touch SCHEMAS
+gschemas.compiled: | SCHEMAS
+	glib-compile-schemas /usr/share/glib-2.0/schemas --targetdir=.
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

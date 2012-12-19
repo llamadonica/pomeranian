@@ -217,25 +217,31 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @DEBUG_FALSE@DEBUG_FLAG = -DDEBUG=0
 @DEBUG_TRUE@DEBUG_FLAG = -DDEBUG=1
+@MINGW_BUILD_FALSE@MINGW_FLAG = 
+@MINGW_BUILD_TRUE@MINGW_FLAG = -D MINGW_BUILD
+@MINGW_BUILD_FALSE@PATH_DELIMITER = /
+@MINGW_BUILD_TRUE@PATH_DELIMITER = "\\\\"
+@MINGW_BUILD_FALSE@TRUE_PKGDATADIR = "$(pkgdatadir)"
+@MINGW_BUILD_TRUE@TRUE_PKGDATADIR = pomeranian
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
-	-DPKGDATADIR=\""$(pkgdatadir)"\" \
-	-DSOUNDSDIR=\""$(pkgdatadir)/sounds"\" \
-	-DUIDIR=\""$(pkgdatadir)/ui"\" \
-	-DANIDIR=\""$(pkgdatadir)/ani"\" \
+	-DPKGDATADIR=\""$(TRUE_PKGDATADIR)"\" \
+	-DSOUNDSDIR=\""$(TRUE_PKGDATADIR)$(PATH_DELIMITER)sounds"\" \
+	-DUIDIR=\""$(TRUE_PKGDATADIR)$(PATH_DELIMITER)ui"\" \
+	-DANIDIR=\""$(TRUE_PKGDATADIR)$(PATH_DELIMITER)ani"\" \
 	$(DEBUG_FLAG) \
 	$(POMERANIAN_CFLAGS)
 
 AM_CFLAGS = \
 	 -Wall\
-	 -g
+	 -O2
 
 pomeranian_SOURCES = \
 	pomeranian.vala config.vapi input_rectangles.vala
 
 pomeranian_VALAFLAGS = \
-	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-1.0 --pkg gstreamer-0.10 --pkg cairo -g --save-temps --define=DEBUG
+	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-0.8 --pkg gstreamer-0.10 --pkg cairo -g --save-temps $(MINGW_FLAG)
 
 pomeranian_LDFLAGS = \
 	-Wl,--export-dynamic 
@@ -503,7 +509,7 @@ maintainer-clean-generic:
 	-rm -f pomeranian.c
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-local mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -573,23 +579,26 @@ uninstall-am: uninstall-binPROGRAMS uninstall-local
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-binPROGRAMS \
-	clean-generic cscopelist ctags distclean distclean-compile \
-	distclean-generic distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-binPROGRAMS \
-	install-data install-data-am install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-local
+	clean-generic clean-local cscopelist ctags distclean \
+	distclean-compile distclean-generic distclean-tags distdir dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-local
 
 
 # Remove ui directory on uninstall
 uninstall-local:
 	-rm -r $(uidir)
 	-rm -r $(pkgdatadir)
+clean-local:
+	-rm -f *.c
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
