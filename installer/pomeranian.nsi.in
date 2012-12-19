@@ -1,0 +1,78 @@
+; @gs_name@.app installer script
+;
+!define PRODUCT_NAME "@PACKAGE_NAME@"
+!define PRODUCT_VERSION "@PACKAGE_VERSION@"
+!define PRODUCT_HOST "@host_cpu@"
+!define PRODUCT_PUBLISHER "Adam and Monica Stark"
+!define PRODUCT_WEB_SITE "http://www.gnustep.org"
+!define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\Pomeranian"
+!define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
+!define PRODUCT_UNINST_ROOT_KEY "HKLM"
+!define PRODUCT_STARTMENU_REGVAL "NSIS:StartMenuDir"
+
+; MUI 1.67 compatible ------
+!include "MUI2.nsh"
+
+Name "${PRODUCT_NAME}"
+OutFile "${PRODUCT_NAME}_${PRODUCT_VERSION}_${PRODUCT_HOST}.exe"
+InstallDir "$PROGRAMFILES\Pomeranian"
+InstallDirRegKey HKLM "Software\Pomeranian" ""
+DirText "Where would you like to install Pomeranian?"
+RequestExecutionLevel user
+ShowInstDetails show
+ShowUninstDetails show
+
+Var StartMenuFolder
+
+; MUI Settings
+!define MUI_ABORTWARNING
+!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+
+; Installer page
+!insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_COMPONENTS
+!insertmacro MUI_PAGE_DIRECTORY
+
+!define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKCU"
+!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software/Pomeranian"
+!define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
+!insertmacro MUI_PAGE_STARTMENU Application $StartMenuFolder
+
+!insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
+
+; Uninstaller pages
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
+
+; Language files
+!insertmacro MUI_LANGUAGE "English"
+
+Section "Pomeranian" SEC01
+  SetOverwrite try
+  SetOutPath "$INSTDIR"
+  
+  File /r ..\.package
+  WriteRegStr HKLM "Software\Pomeranian" "" $INSTDIR
+  WriteUninstaller "$INSTDIR\Uninstall.exe"
+  
+  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
+	CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
+	CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+	CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Pomeranian.lnk" "$INSTDIR\bin\Pomeranian.exe"
+  !insertmacro MUI_STARTMENU_WRITE_END
+SectionEnd
+
+Section Uninstall
+  Delete "$INSTDIR\Uninstall.exe"
+  RMDir "$INSTDIR"
+  
+  !insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
+  Delete "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk"
+  RMDir "$SMPrograms\$StartMenuFolder\"
+  
+  DeleteRegKey HKLM "Software\Pomeranian"
+  SetAutoClose true
+SectionEnd
+
