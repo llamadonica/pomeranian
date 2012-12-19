@@ -121,7 +121,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = src data po dll
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -274,9 +274,12 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+@MINGW_BUILD_FALSE@DLLDIR = 
+@MINGW_BUILD_TRUE@DLLDIR = dll
 SUBDIRS = src \
 	data \
-	po
+	po \
+	$(DLLDIR)
 
 pomeraniandocdir = ${prefix}/doc/pomeranian
 pomeraniandoc_DATA = \

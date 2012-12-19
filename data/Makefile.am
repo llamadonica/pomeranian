@@ -23,11 +23,14 @@ SUBDIRS = ui sounds ani
 uninstall-local:
 	-rm -r $(pkgdatadir)
 	-rm -r $(schemadir)
+clean-local:
+	-rm -rf schemas
+	-rm -f SCHEMAS
 SCHEMAS:
 	mkdir schemas
 	cp /usr/share/glib-2.0/schemas/*.xml schemas/
 	touch SCHEMAS
 gschemas.compiled: | SCHEMAS
 	glib-compile-schemas /usr/share/glib-2.0/schemas --targetdir=.
-	
+
 	

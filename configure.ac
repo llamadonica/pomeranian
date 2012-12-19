@@ -18,10 +18,7 @@ AS_CASE([$host],
        [mingw=false]
      )
 
-AS_CASE([$host],
-       [*-*-mingw32], [mingw=true],
-       [mingw=false]
-     )
+
 
 AC_ARG_ENABLE([debug],
 	[  --enable-debug    Turn on debugging],
@@ -53,6 +50,11 @@ AM_GLIB_GNU_GETTEXT
 GETTEXT_PACKAGE=pomeranian
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE], ["${GETTEXT_PACKAGE}"], [gettext domain])
+
+AS_CASE([$host],
+       [*-*-mingw32], [AC_CONFIG_FILES([ dll/Makefile
+		 ])]
+     )
 
 AC_CONFIG_FILES([ po/Makefile.in
 Makefile

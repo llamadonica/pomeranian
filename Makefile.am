@@ -1,9 +1,16 @@
 ## Process this file with automake to produce Makefile.in
 ## Created by Anjuta
 
+if MINGW_BUILD
+DLLDIR = dll
+else
+DLLDIR =
+endif
+
 SUBDIRS = src \
 	data \
-	po
+	po \
+	$(DLLDIR)
 
 pomeraniandocdir = ${prefix}/doc/pomeranian
 pomeraniandoc_DATA = \

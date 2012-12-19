@@ -3912,13 +3912,7 @@ case $host in #(
       ;;
 esac
 
-case $host in #(
-  *-*-mingw32) :
-    mingw=true ;; #(
-  *) :
-    mingw=false
-      ;;
-esac
+
 
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
@@ -5383,6 +5377,15 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+case $host in #(
+  *-*-mingw32) :
+    ac_config_files="$ac_config_files dll/Makefile"
+
+      ;; #(
+  *) :
+     ;;
+esac
+
 ac_config_files="$ac_config_files po/Makefile.in Makefile src/Makefile data/pomeranian.desktop data/Makefile data/ani/Makefile data/ui/Makefile data/sounds/Makefile"
 
 
@@ -6123,6 +6126,7 @@ do
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "default-1") CONFIG_COMMANDS="$CONFIG_COMMANDS default-1" ;;
+    "dll/Makefile") CONFIG_FILES="$CONFIG_FILES dll/Makefile" ;;
     "po/Makefile.in") CONFIG_FILES="$CONFIG_FILES po/Makefile.in" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;

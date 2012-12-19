@@ -331,7 +331,6 @@ public class PreferenceDialog : GLib.Object {
 			bool valid_view  = false;
 			
 			var key_iterator = this.app.get_ui_factory().instantiaters.map_iterator();
-			key_iterator.unset();
 			if (key_iterator.next()) {
 				do {
 					ui_menu.append(key_iterator.get_key(), _(key_iterator.get_key()));

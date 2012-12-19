@@ -612,7 +612,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-recursive
 
-clean-am: clean-generic mostlyclean-am
+clean-am: clean-generic clean-local mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f Makefile
@@ -683,10 +683,10 @@ uninstall-am: uninstall-desktopDATA uninstall-iconDATA uninstall-local \
 	tags-recursive
 
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
-	all all-am check check-am clean clean-generic cscopelist \
-	cscopelist-recursive ctags ctags-recursive distclean \
-	distclean-generic distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
+	all all-am check check-am clean clean-generic clean-local \
+	cscopelist cscopelist-recursive ctags ctags-recursive \
+	distclean distclean-generic distclean-tags distdir dvi dvi-am \
+	html html-am info info-am install install-am install-data \
 	install-data-am install-desktopDATA install-dvi install-dvi-am \
 	install-exec install-exec-am install-html install-html-am \
 	install-iconDATA install-info install-info-am install-man \
@@ -702,6 +702,9 @@ uninstall-am: uninstall-desktopDATA uninstall-iconDATA uninstall-local \
 uninstall-local:
 	-rm -r $(pkgdatadir)
 	-rm -r $(schemadir)
+clean-local:
+	-rm -rf schemas
+	-rm -f SCHEMAS
 SCHEMAS:
 	mkdir schemas
 	cp /usr/share/glib-2.0/schemas/*.xml schemas/
