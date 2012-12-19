@@ -3912,6 +3912,14 @@ case $host in #(
       ;;
 esac
 
+case $host in #(
+  *-*-mingw32) :
+    mingw=true ;; #(
+  *) :
+    mingw=false
+      ;;
+esac
+
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug; case "${enableval}" in

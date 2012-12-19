@@ -65,7 +65,7 @@ public class Preferences : GLib.Object {
 	private int file_exists = -1;
 	
 	public Preferences () {
-		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
+		this.INI_FILE = App.path_from_resource(Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null));
 		this.configurators = new List<PreferenceEnabled> ();
 		
 	}
