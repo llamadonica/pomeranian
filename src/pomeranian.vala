@@ -1511,7 +1511,7 @@ public class VisualTimer : TimerUI {
 		this.preferences = prefs;
 		this.app = app;
 		this.anidir = Config.ANIDIR;
-		this.get_pom_gtk_window(); //.show();
+		this.get_pom_gtk_window().show();
 		this.preferences.notify.connect((_,param) => {
 				App.debug ("Parameter %s changed.\n", param.name);
 			});

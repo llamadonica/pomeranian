@@ -227,12 +227,16 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @DEBUG_FALSE@DEBUG_FLAG = -DDEBUG=0
 @DEBUG_TRUE@DEBUG_FLAG = -DDEBUG=1
+@DEBUG_FALSE@MINGW_DEBUG = -mwindows
+@DEBUG_TRUE@MINGW_DEBUG = 
 @MINGW_BUILD_FALSE@MINGW_FLAG = 
 @MINGW_BUILD_TRUE@MINGW_FLAG = -D MINGW_BUILD
 @MINGW_BUILD_FALSE@PATH_DELIMITER = /
 @MINGW_BUILD_TRUE@PATH_DELIMITER = "\\\\"
 @MINGW_BUILD_FALSE@TRUE_PKGDATADIR = "$(pkgdatadir)"
 @MINGW_BUILD_TRUE@TRUE_PKGDATADIR = pomeranian
+@MINGW_BUILD_FALSE@MINGW_CFLAG = 
+@MINGW_BUILD_TRUE@MINGW_CFLAG = $(MINGW_DEBUG)
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
@@ -254,7 +258,7 @@ pomeranian_VALAFLAGS = \
 	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-0.8 --pkg gstreamer-0.10 --pkg cairo -g --save-temps $(MINGW_FLAG)
 
 pomeranian_LDFLAGS = \
-	-Wl,--export-dynamic 
+	-Wl,--export-dynamic $(MINGW_CFLAG)
 
 pomeranian_LDADD = $(POMERANIAN_LIBS)
 EXTRA_DIST = $(ui_DATA)

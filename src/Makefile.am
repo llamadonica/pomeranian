@@ -4,18 +4,22 @@
 
 if DEBUG
 DEBUG_FLAG = -DDEBUG=1
+MINGW_DEBUG =
 else
 DEBUG_FLAG = -DDEBUG=0
+MINGW_DEBUG = -mwindows
 endif
 
 if MINGW_BUILD
 MINGW_FLAG = -D MINGW_BUILD
 PATH_DELIMITER = "\\\\"
 TRUE_PKGDATADIR = pomeranian
+MINGW_CFLAG = $(MINGW_DEBUG)
 else
 MINGW_FLAG = 
 PATH_DELIMITER = /
 TRUE_PKGDATADIR = "$(pkgdatadir)"
+MINGW_CFLAG =
 endif
 
 
@@ -43,7 +47,7 @@ pomeranian_VALAFLAGS =  \
 	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-0.8 --pkg gstreamer-0.10 --pkg cairo -g --save-temps $(MINGW_FLAG)
 
 pomeranian_LDFLAGS = \
-	-Wl,--export-dynamic 
+	-Wl,--export-dynamic $(MINGW_CFLAG)
 
 pomeranian_LDADD = $(POMERANIAN_LIBS)
 
