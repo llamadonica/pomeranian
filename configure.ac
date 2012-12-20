@@ -57,7 +57,8 @@ AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE], ["${GETTEXT_PACKAGE}"], [gettext domain])
 AS_CASE([$host],
        [*-*-mingw32], [AC_CONFIG_FILES([ 
 			dll/Makefile
-			installer/pomeranian.nsi])]
+			installer/pomeranian.nsi
+			installer/Makefile])]
      )
 
 AC_CONFIG_FILES([ po/Makefile.in

@@ -53,11 +53,9 @@ host_triplet = @host@
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
-	$(top_srcdir)/configure \
-	$(top_srcdir)/installer/pomeranian.nsi.in ABOUT-NLS AUTHORS \
-	COPYING ChangeLog INSTALL NEWS compile config.guess \
-	config.rpath config.sub depcomp install-sh missing \
-	mkinstalldirs
+	$(top_srcdir)/configure ABOUT-NLS AUTHORS COPYING ChangeLog \
+	INSTALL NEWS compile config.guess config.rpath config.sub \
+	depcomp install-sh missing mkinstalldirs
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -66,7 +64,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h
-CONFIG_CLEAN_FILES = installer/pomeranian.nsi
+CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_GEN = $(am__v_GEN_@AM_V@)
 am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
@@ -125,7 +123,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
-DIST_SUBDIRS = src data po dll
+DIST_SUBDIRS = src data po dll installer
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -287,7 +285,9 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @MINGW_BUILD_FALSE@DLLDIR = 
-@MINGW_BUILD_TRUE@DLLDIR = dll
+@MINGW_BUILD_TRUE@DLLDIR = dll \
+@MINGW_BUILD_TRUE@	installer
+
 SUBDIRS = src \
 	data \
 	po \
@@ -357,8 +357,6 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 
 distclean-hdr:
 	-rm -f config.h stamp-h1
-installer/pomeranian.nsi: $(top_builddir)/config.status $(top_srcdir)/installer/pomeranian.nsi.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
 install-pomeraniandocDATA: $(pomeraniandoc_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(pomeraniandoc_DATA)'; test -n "$(pomeraniandocdir)" || list=; \

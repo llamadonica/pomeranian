@@ -5464,7 +5464,7 @@ _ACEOF
 
 case $host in #(
   *-*-mingw32) :
-    ac_config_files="$ac_config_files dll/Makefile installer/pomeranian.nsi"
+    ac_config_files="$ac_config_files dll/Makefile installer/pomeranian.nsi installer/Makefile"
 
       ;; #(
   *) :
@@ -6213,6 +6213,7 @@ do
     "default-1") CONFIG_COMMANDS="$CONFIG_COMMANDS default-1" ;;
     "dll/Makefile") CONFIG_FILES="$CONFIG_FILES dll/Makefile" ;;
     "installer/pomeranian.nsi") CONFIG_FILES="$CONFIG_FILES installer/pomeranian.nsi" ;;
+    "installer/Makefile") CONFIG_FILES="$CONFIG_FILES installer/Makefile" ;;
     "po/Makefile.in") CONFIG_FILES="$CONFIG_FILES po/Makefile.in" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;

@@ -2,7 +2,8 @@
 ## Created by Anjuta
 
 if MINGW_BUILD
-DLLDIR = dll
+DLLDIR = dll \
+	installer
 else
 DLLDIR =
 endif

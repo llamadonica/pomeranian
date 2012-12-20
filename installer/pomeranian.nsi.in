@@ -53,7 +53,9 @@ Section "Pomeranian" SEC01
   SetOverwrite try
   SetOutPath "$INSTDIR"
   
-  File /r ..\.package
+  File /r bin
+  File /r share
+  File /r doc
   WriteRegStr HKLM "Software\Pomeranian" "" $INSTDIR
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   
