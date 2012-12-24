@@ -44,7 +44,7 @@ pomeranian_SOURCES = \
 	pomeranian.vala config.vapi input_rectangles.vala
 
 pomeranian_VALAFLAGS =  \
-	--pkg gio-2.0 --pkg gtk+-3.0 --pkg gee-0.8 --pkg gstreamer-0.10 --pkg cairo -g --save-temps $(MINGW_FLAG)
+	--pkg gio-2.0 --pkg gtk+-2.0 --pkg gee-0.8 --pkg gstreamer-0.10 --pkg cairo -g --save-temps $(MINGW_FLAG)
 
 pomeranian_LDFLAGS = \
 	-Wl,--export-dynamic $(MINGW_CFLAG)

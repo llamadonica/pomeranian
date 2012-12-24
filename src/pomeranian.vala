@@ -65,7 +65,7 @@ public class Preferences : GLib.Object {
 	private int file_exists = -1;
 	
 	public Preferences () {
-		this.INI_FILE = App.path_from_resource(Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null));
+		this.INI_FILE = Path.build_filename (Environment.get_user_config_dir (), Config.PACKAGE_NAME , "config.txt",null);
 		this.configurators = new List<PreferenceEnabled> ();
 		
 	}
@@ -708,7 +708,10 @@ public class App : GLib.Object {
 		this.configure_app_preferences ();
 		/* Create the StatusIcon
 		*/
-		this.get_status_icon();	
+		Idle.add (() => {
+			this.get_status_icon();	
+			return false;
+		});
 		
 		get_ui().ring.connect ((widget) =>
 			{
@@ -1511,7 +1514,11 @@ public class VisualTimer : TimerUI {
 		this.preferences = prefs;
 		this.app = app;
 		this.anidir = Config.ANIDIR;
-		this.get_pom_gtk_window().show();
+		var window = this.get_pom_gtk_window();
+		Idle.add(() => {
+			window.show();
+			return false;
+		});
 		this.preferences.notify.connect((_,param) => {
 				App.debug ("Parameter %s changed.\n", param.name);
 			});
