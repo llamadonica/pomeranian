@@ -28,7 +28,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
  namespace Pomeranian{
-	const Cairo.RectangleInt input_region[] = {
+	const Gdk.Rectangle input_region[] = {
 // Found 3068 partitions.
 		{111,20, 25, 1},
 		{109,20, 1, 1},

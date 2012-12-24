@@ -326,14 +326,14 @@ public class PreferenceDialog : GLib.Object {
 					}
 				});
 			
-			var ui_menu      = this.app.get_builder().get_object ("preference-dialog-interface-selector") as Gtk.ComboBoxText ;
+			var ui_menu      = this.app.get_builder().get_object ("preference-dialog-interface-selector") as Gtk.ComboBox ;
 			this.previous_ui_view = this.app.get_app_config().ui_view ;
 			bool valid_view  = false;
 			
 			var key_iterator = this.app.get_ui_factory().instantiaters.map_iterator();
 			if (key_iterator.next()) {
 				do {
-					ui_menu.append(key_iterator.get_key(), _(key_iterator.get_key()));
+					ui_menu.append_text(_(key_iterator.get_key()));
 					if (this.previous_ui_view == key_iterator.get_key())
 						valid_view = true;
 				} while (key_iterator.next());
@@ -1198,7 +1198,7 @@ public class VisualTimer : TimerUI {
 		if (this._pom_gtk_window == null) {
 			this._pom_gtk_window = 
 				this.app.get_builder().get_object("pom-gtk-window") as Gtk.Window ;
-			this._pom_gtk_window.set_visual(this._pom_gtk_window.get_screen().get_rgba_visual());
+			this._pom_gtk_window.set_colormap(this._pom_gtk_window.get_screen().get_rgba_colormap());
 			try {
 				this._pom_gtk_window.set_icon_from_file (
 					App.path_from_resource(Path.build_filename(Config.PKGDATADIR,"pomeranian.png",null)));
@@ -1215,24 +1215,21 @@ public class VisualTimer : TimerUI {
 					this.get_pom_gtk_window().set_opacity (this.preferences.opacity/100);
 				});
 			this._pom_gtk_window.realize.connect_after(() => {
-					Cairo.RectangleInt[] input_region_temp = new Cairo.RectangleInt[input_region.length];
-					int j = 0;
+					Gdk.Rectangle input_region_temp ;
+					Gdk.Region region = new Gdk.Region ();
+					//int j = 0;
 					for (int i = 0; i<input_region.length; i++) {
-						input_region_temp[j].x = input_region[i].x*this.preferences.size / 240;
-						input_region_temp[j].y = input_region[i].y*this.preferences.size / 240;
-						input_region_temp[j].width = (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp[j].x;
-						input_region_temp[j].height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp[j].y;
-						if (input_region_temp[j].width > 0 && input_region_temp[j].height > 0) j++;
-						App.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
+						input_region_temp.x = input_region[i].x*this.preferences.size / 240;
+						input_region_temp.y = input_region[i].y*this.preferences.size / 240;
+						input_region_temp.width =  (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp.x;
+						input_region_temp.height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp.y;
+						if (input_region_temp.width > 0 && input_region_temp.height > 0) {
+							App.debug("\t{%d,%d,%d,%d},\n", input_region_temp.x,input_region_temp.y,input_region_temp.width,input_region_temp.height);
+							region.union_with_rect (input_region_temp);
+						}
 					}
-					Cairo.RectangleInt[] input_region_new = new Cairo.RectangleInt[j + 1];
-					for (int i = 0; i<=j; i++) 
-						input_region_new[i] = input_region_temp[i];
-					
 					this.get_pom_gtk_window().set_keep_above(true); 
-					Cairo.Region region   = new Cairo.Region.rectangles(input_region_new);
 					this.get_pom_gtk_window().get_window().input_shape_combine_region(region,0,0);
-					App.debug("Input shape combined. %d\n", input_region_temp.length);
 				});
 			this._pom_gtk_window.destroy.connect(() => {
 					this.preferences.disconnect (opacity_handler);
@@ -1256,28 +1253,26 @@ public class VisualTimer : TimerUI {
 					this.get_pom_gtk_surface().set_size_request (this.preferences.size, this.preferences.size);
 					this.scale_factor = ((double) this.preferences.size)/240 ;
 					this.get_pom_gtk_surface().queue_draw();
-					Cairo.RectangleInt[] input_region_temp = new Cairo.RectangleInt[input_region.length];
-					int j = 0;
+					Gdk.Rectangle input_region_temp ;
+					Gdk.Region region = new Gdk.Region ();
+					//int j = 0;
 					for (int i = 0; i<input_region.length; i++) {
-						input_region_temp[j].x = input_region[i].x*this.preferences.size / 240;
-						input_region_temp[j].y = input_region[i].y*this.preferences.size / 240;
-						input_region_temp[j].width = (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp[j].x;
-						input_region_temp[j].height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp[j].y;
-						if (input_region_temp[j].width > 0 && input_region_temp[j].height > 0) j++;
-						App.debug("\t{%d,%d,%d,%d},\n", input_region_temp[j].x,input_region_temp[j].y,input_region_temp[j].width,input_region_temp[j].height);
+						input_region_temp.x = input_region[i].x*this.preferences.size / 240;
+						input_region_temp.y = input_region[i].y*this.preferences.size / 240;
+						input_region_temp.width =  (input_region[i].x + input_region[i].width)*this.preferences.size / 240 - input_region_temp.x;
+						input_region_temp.height = (input_region[i].y + input_region[i].height)*this.preferences.size / 240 - input_region_temp.y;
+						if (input_region_temp.width > 0 && input_region_temp.height > 0) {
+							App.debug("\t{%d,%d,%d,%d},\n", input_region_temp.x,input_region_temp.y,input_region_temp.width,input_region_temp.height);
+							region.union_with_rect (input_region_temp);
+						}
 					}
-					Cairo.RectangleInt[] input_region_new = new Cairo.RectangleInt[j + 1];
-					for (int i = 0; i<=j; i++) 
-						input_region_new[i] = input_region_temp[i];
-					
-					Cairo.Region region   = new Cairo.Region.rectangles(input_region_new);
+					this.get_pom_gtk_window().set_keep_above(true); 
 					this.get_pom_gtk_window().get_window().input_shape_combine_region(region,0,0);
-					App.debug("Input shape combined. %d\n", input_region_temp.length);
 				});
 			this.get_pom_gtk_surface().destroy.connect(() => {
 					this.preferences.disconnect (size_handler);
 				});
-			get_pom_gtk_surface().draw.connect( this.redraw_surface );
+			get_pom_gtk_surface().expose_event.connect( this.redraw_surface );
 			
 			get_pom_gtk_surface().button_press_event.connect ((event) => {
 					if (event.type != Gdk.EventType.BUTTON_PRESS) return false;
@@ -1689,7 +1684,7 @@ public class VisualTimerPreferences : PreferenceEnabled {
 	}
 }
 public class VisualTimerPreferencesDialog : PreferenceDialogEnabled {
-	private Gtk.Grid _subdialog;
+	private Gtk.Box _subdialog;
 	private Gtk.Adjustment _opacity_adjustment;
 	private Gtk.Adjustment _size_adjustment;
 	
@@ -1700,10 +1695,10 @@ public class VisualTimerPreferencesDialog : PreferenceDialogEnabled {
 	private int previous_size;
 	private double previous_opacity;
 	
-	private Gtk.Grid get_subdialog () {	
+	private Gtk.Box get_subdialog () {	
 		if (this._subdialog == null) 
 		{	this._subdialog = 
-				this.ui.app.get_builder().get_object("visual-timer-preferences-subdialog") as Gtk.Grid ;
+				this.ui.app.get_builder().get_object("visual-timer-preferences-subdialog") as Gtk.Box ;
 			this.get_opacity_adjustment().notify["value"].connect(() => {
 					this.preferences.opacity = this.get_opacity_adjustment().value ;
 				});
@@ -1733,7 +1728,8 @@ public class VisualTimerPreferencesDialog : PreferenceDialogEnabled {
 		this.preferences = this.ui.preferences;
 	}
 	public override void instantiate (Gtk.Bin container) {
-		container.child = get_subdialog() ;
+		Gtk.Widget subdialog = get_subdialog() ;
+		container.child = subdialog;
 	}
 	public override void show () {
 		this.get_opacity_adjustment().value = this.previous_opacity = this.preferences.opacity ;
@@ -1932,7 +1928,7 @@ public class GStreamerSoundHandlerPreferences : PreferenceEnabled {
 	}
 }
 public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
-	private Gtk.Grid _subdialog;
+	private Gtk.Box _subdialog;
 	private Gtk.FileChooserButton _wind_sound_chooser;
 	private Gtk.FileChooserButton _ring_sound_chooser;
 	private Gtk.FileChooserButton _tick_sound_chooser;
@@ -1944,10 +1940,10 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 	private string? previous_ring_sound;
 	private string? previous_tick_sound;
 	
-	private Gtk.Grid get_subdialog ()   {
+	private Gtk.Box get_subdialog ()   {
 		if (this._subdialog == null) 
 		{	this._subdialog = 
-				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Grid ;
+				this.sound_handler.app.get_builder().get_object("gstreamer-sound-handler-preferences-dialog-subdialog") as Gtk.Box ;
 			this.get_wind_sound_chooser().file_set.connect(() => {
 					this.preferences.wind_sound = this.get_wind_sound_chooser().get_uri();
 				});
