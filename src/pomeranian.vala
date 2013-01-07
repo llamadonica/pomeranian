@@ -1426,7 +1426,9 @@ public class VisualTimer : TimerUI {
 		}
 		return this._timer_dialog_preferences;
 	}
-	
+	public bool redraw_surface_gtk2 (Gdk.EventExpose expose) {
+		return this.redraw_surface(Gdk.cairo_create (expose.window)) ;
+	}
 	public bool redraw_surface (Cairo.Context cr) {
 		cr.scale(this.scale_factor,this.scale_factor);
 		cr.set_source_surface (this.get_current_frame(),0,0);
@@ -1460,7 +1462,7 @@ public class VisualTimer : TimerUI {
 				default: error ("%s\n", _("Impossible Phase of timer"));
 			}
 			
-			var font_description = Pango.FontDescription.from_string (this.FONT_DESCRIPTION);
+			var font_description = Pango.FontDescription.from_string (VisualTimer.FONT_DESCRIPTION);
 			double scale_by = 1024;
 			
 			layout.set_width((int) scale_by*200);
@@ -1502,7 +1504,7 @@ public class VisualTimer : TimerUI {
 		}
 		int minutes, seconds;
 		this.get_time (out minutes, out seconds);
-		return (minutes*60 + seconds)/this.seconds_per_frame ;
+		return (minutes*60 + seconds)/VisualTimer.seconds_per_frame ;
 	}
 	public weak App app;
 	public VisualTimer (App app, VisualTimerPreferences prefs) {
@@ -1986,7 +1988,8 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		this.preferences = this.sound_handler.preferences;
 	}
 	public override void instantiate (Gtk.Bin container) {
-		container.child = get_subdialog() ;
+		Gtk.Widget subdialog = get_subdialog() ;
+		container.child = subdialog;
 		this.get_wind_sound_chooser().set_uri(this.previous_wind_sound = this.preferences.wind_sound) ;
 		this.get_ring_sound_chooser().set_uri(this.previous_ring_sound = this.preferences.ringing_sound) ;
 		this.get_tick_sound_chooser().set_uri(this.previous_tick_sound = this.preferences.ticking_sound) ;
