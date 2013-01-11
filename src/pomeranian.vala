@@ -259,6 +259,9 @@ public class PreferenceDialog : GLib.Object {
 	private Gtk.Expander _audio_expander;
 	
 	private string previous_ui_view;
+	private Gee.HashMap<string,int> name_to_id ;
+	private Gee.HashMap<int,string> id_to_name ;
+	private int current_id = 0;
 	
 	private Gtk.Dialog _options_dialog ;
 	private Gtk.Expander get_ui_expander ()  {
@@ -334,22 +337,24 @@ public class PreferenceDialog : GLib.Object {
 			if (key_iterator.next()) {
 				do {
 					ui_menu.append_text(_(key_iterator.get_key()));
+					this.name_to_id.set (key_iterator.get_key(),this.current_id);
+					this.id_to_name.set (this.current_id++, key_iterator.get_key());
 					if (this.previous_ui_view == key_iterator.get_key())
 						valid_view = true;
 				} while (key_iterator.next());
 			}
 			if (valid_view) {
-				ui_menu.set_active_id (this.previous_ui_view);
+				ui_menu.set_active (this.name_to_id.get(this.previous_ui_view));
 			} else {
-				ui_menu.set_active_id ("Tomato Interface");
+				ui_menu.set_active (this.name_to_id.get("Tomato Interface"));
 			}
 			ui_menu.changed.connect(() =>
 				{
-					App.debug("Changed UI interface to: %s\n", ui_menu.get_active_id());
+					App.debug("Changed UI interface to: %s\n", ui_menu.get_active());
 					if (this.ui_sub_dialog != null)
 						this.ui_sub_dialog .hide();
 					
-					this.app.get_app_config().ui_view = ui_menu.get_active_id() ;
+					this.app.get_app_config().ui_view = this.id_to_name.get (ui_menu.get_active()) ;
 					this.ui_sub_dialog = this.app.get_ui().preference_dialog ;
 					if (this.ui_sub_dialog != null)
 					{
@@ -363,7 +368,7 @@ public class PreferenceDialog : GLib.Object {
 						this.get_ui_expander().sensitive = false;
 					}
 					
-					App.debug("Finished interface change: %s\n", ui_menu.get_active_id());
+					App.debug("Finished interface change: %s\n", ui_menu.get_active());
 				});
 			
 			this.ui_sub_dialog = this.app.get_ui().preference_dialog ;
@@ -432,6 +437,8 @@ public class PreferenceDialog : GLib.Object {
 	}
 	public PreferenceDialog (App app) {
 		this.app = app;
+		this.name_to_id = new Gee.HashMap<string,int> () ;
+		this.id_to_name = new Gee.HashMap<int,string> () ;
 	}
 }
 
@@ -577,7 +584,7 @@ public class App : GLib.Object {
 		var layout  = Pango.cairo_create_layout (cr);
 		var message = ("%d").printf(this.get_ui().minutes);
 		
-		var font_description = Pango.FontDescription.from_string (this.FONT_DESCRIPTION);
+		var font_description = Pango.FontDescription.from_string (App.FONT_DESCRIPTION);
 		double scale_by      = 1024;
 		font_description.set_size((int) scale_by*72*(size/2)/96);
 		
@@ -636,7 +643,7 @@ public class App : GLib.Object {
 		{
 			this._about_dialog = this.get_builder().get_object ("about-dialog") as Gtk.AboutDialog;
 			this._about_dialog.program_name = App.PROGRAM_NAME ;
-			this._about_dialog.version = this.VERSION ;
+			this._about_dialog.version = App.VERSION ;
 		}
 		return this._about_dialog;
 	}
@@ -1272,7 +1279,7 @@ public class VisualTimer : TimerUI {
 			this.get_pom_gtk_surface().destroy.connect(() => {
 					this.preferences.disconnect (size_handler);
 				});
-			get_pom_gtk_surface().expose_event.connect( this.redraw_surface );
+			get_pom_gtk_surface().expose_event.connect( this.redraw_surface_gtk2 );
 			
 			get_pom_gtk_surface().button_press_event.connect ((event) => {
 					if (event.type != Gdk.EventType.BUTTON_PRESS) return false;
@@ -1426,7 +1433,9 @@ public class VisualTimer : TimerUI {
 		}
 		return this._timer_dialog_preferences;
 	}
-	
+	public bool redraw_surface_gtk2 (Gdk.EventExpose expose) {
+		return this.redraw_surface(Gdk.cairo_create (expose.window)) ;
+	}
 	public bool redraw_surface (Cairo.Context cr) {
 		cr.scale(this.scale_factor,this.scale_factor);
 		cr.set_source_surface (this.get_current_frame(),0,0);
@@ -1460,7 +1469,7 @@ public class VisualTimer : TimerUI {
 				default: error ("%s\n", _("Impossible Phase of timer"));
 			}
 			
-			var font_description = Pango.FontDescription.from_string (this.FONT_DESCRIPTION);
+			var font_description = Pango.FontDescription.from_string (VisualTimer.FONT_DESCRIPTION);
 			double scale_by = 1024;
 			
 			layout.set_width((int) scale_by*200);
@@ -1502,7 +1511,7 @@ public class VisualTimer : TimerUI {
 		}
 		int minutes, seconds;
 		this.get_time (out minutes, out seconds);
-		return (minutes*60 + seconds)/this.seconds_per_frame ;
+		return (minutes*60 + seconds)/VisualTimer.seconds_per_frame ;
 	}
 	public weak App app;
 	public VisualTimer (App app, VisualTimerPreferences prefs) {
@@ -1986,7 +1995,8 @@ public class GStreamerSoundHandlerPreferencesDialog : PreferenceDialogEnabled {
 		this.preferences = this.sound_handler.preferences;
 	}
 	public override void instantiate (Gtk.Bin container) {
-		container.child = get_subdialog() ;
+		Gtk.Widget subdialog = get_subdialog() ;
+		container.child = subdialog;
 		this.get_wind_sound_chooser().set_uri(this.previous_wind_sound = this.preferences.wind_sound) ;
 		this.get_ring_sound_chooser().set_uri(this.previous_ring_sound = this.preferences.ringing_sound) ;
 		this.get_tick_sound_chooser().set_uri(this.previous_tick_sound = this.preferences.ticking_sound) ;
